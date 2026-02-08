@@ -196,6 +196,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
   };
 
+  const savePrompt = async (prompt: string) => {
+      if (!prompt || !prompt.trim()) return;
+      setUser(prev => {
+          const currentHistory = prev.promptHistory || [];
+          if (currentHistory.includes(prompt)) return prev;
+          const newHistory = [prompt, ...currentHistory].slice(0, 10);
+          const newUser = { ...prev, promptHistory: newHistory };
+          saveUserProfile(newUser).catch(console.error);
+          return newUser;
+      });
+  };
+
   const addPokemon = async (pokemon: Pokemon) => {
     setInventory(prev => [pokemon, ...prev]);
     await addPokemonToInventory(pokemon);
@@ -517,7 +529,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useItem,
     buyRelic,
     equipRelic,
-    unequipRelic
+    unequipRelic,
+    savePrompt
   };
 
   return (

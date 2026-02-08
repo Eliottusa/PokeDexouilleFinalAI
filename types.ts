@@ -35,6 +35,9 @@ export interface Pokemon {
   personality: Personality;
   friendship: number; // 0-255
   heldItem?: string; // Relic ID
+  nickname?: string;
+  suggestedNicknames?: string[];
+  parents?: [string, string]; // Names of parents if fusion
 }
 
 export interface Item {
@@ -80,6 +83,7 @@ export interface UserProfile {
   items: Record<string, number>; // itemId -> count
   relics: Record<string, number>; // relicId -> count
   transactions: Transaction[];
+  promptHistory: string[];
 }
 
 export type ViewState = 'dashboard' | 'generator' | 'pokedex' | 'battle' | 'marketplace' | 'social';
@@ -170,6 +174,8 @@ export interface GameContextType extends GameState {
   buyRelic: (relicId: string) => Promise<void>;
   equipRelic: (pokemonId: string, relicId: string) => Promise<void>;
   unequipRelic: (pokemonId: string) => Promise<void>;
+  // AI Tools
+  savePrompt: (prompt: string) => Promise<void>;
 }
 
 export interface TurnLog {

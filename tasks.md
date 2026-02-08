@@ -97,3 +97,18 @@
 - [x] Add marketplace transaction fees (Implied via pricing)
 - [x] Implement premium currency system (Stardust) earned in battles (Expanded)
 - [x] Add collectible items and Pokémon equipment system (Relics)
+
+#### Generator / Lab Enhancements (Done)
+- [x] Implement Pokémon fusion system (combine 2 Pokémon to create a new one)
+- [x] Add seasonal / event-themed Pokémon generation
+- [x] Implement AI-suggested nicknames for generated Pokémon
+- [x] Add prompt history for custom AI synthesis
+- [x] Introduce limited-time or rare event Pokémon
+
+#### Pokédex & Collection
+- [ ] Add filter by Pokémon type combinations (dual-types)
+- [ ] Implement search by ability / moves / stats
+- [ ] Add "favorite" marking system for Pokémon
+- [ ] Show historical capture/release log per Pokémon
+- [ ] Add achievement badges visible on Pokémon cards
+- [ ] Modify the ReadME so that it explains the whole use case and presents the app.

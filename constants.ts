@@ -4,6 +4,8 @@ export const COSTS = {
   SUMMON_STANDARD: 10,
   SUMMON_AI: 50,
   SUMMON_CUSTOM: 100,
+  SUMMON_FUSION: 150,
+  SUMMON_EVENT: 75,
   MARKET_REFRESH: 5,
   HEAL_COST: 2,
 };
@@ -32,7 +34,8 @@ export const INITIAL_USER_STATE = {
   prestige: 0,
   items: { 'potion': 3 },
   relics: {},
-  transactions: []
+  transactions: [],
+  promptHistory: []
 };
 
 export const LEVEL_CAP = 50;

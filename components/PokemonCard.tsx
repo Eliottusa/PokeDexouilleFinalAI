@@ -116,9 +116,18 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon, readonly = false }) 
       </div>
 
       <div className="p-3 flex-1 flex flex-col">
-        <div className="flex justify-between items-center mb-1">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white capitalize truncate">{pokemon.name}</h3>
-            <span className="text-slate-400 text-xs">#{pokemon.apiId || 'AI'}</span>
+        <div className="flex justify-between items-start mb-1">
+            <div className="overflow-hidden">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white capitalize truncate">
+                    {pokemon.nickname ? (
+                        <>
+                            {pokemon.nickname}
+                            <span className="block text-[10px] text-slate-400 font-normal">({pokemon.name})</span>
+                        </>
+                    ) : pokemon.name}
+                </h3>
+            </div>
+            <span className="text-slate-400 text-xs shrink-0">#{pokemon.apiId || 'AI'}</span>
         </div>
 
         <div className="flex gap-1 mb-3 flex-wrap">
