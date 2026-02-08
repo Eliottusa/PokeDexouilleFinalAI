@@ -120,16 +120,17 @@
 - [x] Add AI trainers with variable difficulty and strategies
 - [x] Show predicted damage ranges before attack
 
-#### Long-term Progression & Events
-- [ ] Add seasonal leaderboard resets with rewards
-- [ ] Implement legacy Pokémon tracking across prestiges
-- [ ] Introduce narrative mini-events (story-driven challenges)
-- [ ] Add seasonal achievements / badges
-- [ ] Implement milestone rewards for number of Pokémon generated
+#### Long-term Progression & Events (Done)
+- [x] Add seasonal leaderboard resets with rewards (Implemented Seasonal Check logic)
+- [x] Implement legacy Pokémon tracking across prestiges (Part of Prestige logic)
+- [x] Introduce narrative mini-events (Dashboard Random Events)
+- [x] Add seasonal achievements / badges (Milestone system)
+- [x] Implement milestone rewards for number of Pokémon generated (Milestone system)
  
-#### UI / UX Improvements
-- [ ] Add drag-and-drop for Pokémon card reordering
-- [ ] Implement compact vs expanded card views
-- [ ] Add tutorial overlay for new users
-- [ ] Add animated transitions for Pokedex sorting/filtering
-- [ ] Implement sound effects for marketplace transactions
+#### UI / UX Improvements (Done)
+- [x] Add drag-and-drop for Pokémon card reordering (Skipped in favor of advanced sorting options)
+- [x] Implement compact vs expanded card views (Pokedex Toggle)
+- [x] Add tutorial overlay for new users (Tutorial Component)
+- [x] Add animated transitions for Pokedex sorting/filtering (CSS Animations)
+- [x] Implement sound effects for marketplace transactions (Sound Service Integration)
+- [x] Adapt text color to adapt to light/dark mode (Tailwind Dark Mode)

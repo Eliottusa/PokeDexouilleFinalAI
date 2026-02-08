@@ -1,4 +1,4 @@
-import { Rarity, GameEvent, Item, Personality, Relic } from './types';
+import { Rarity, GameEvent, Item, Personality, Relic, Milestone, NarrativeEvent } from './types';
 
 export const COSTS = {
   SUMMON_STANDARD: 10,
@@ -35,7 +35,9 @@ export const INITIAL_USER_STATE = {
   items: { 'potion': 3 },
   relics: {},
   transactions: [],
-  promptHistory: []
+  promptHistory: [],
+  tutorialCompleted: false,
+  milestonesClaimed: []
 };
 
 export const LEVEL_CAP = 50;
@@ -170,3 +172,55 @@ export const SEASONAL_EVENTS: Record<string, GameEvent[]> = {
     { id: 'blizzard', name: 'Deep Freeze', description: 'Hardened resolve! Battle rewards are boosted.', effect: 'xp_boost', multiplier: 1.2 },
   ]
 };
+
+export const MILESTONES: Milestone[] = [
+    { id: 'catch_10', target: 10, reward: 100, currency: 'tokens', label: 'Novice Collector', type: 'catch' },
+    { id: 'catch_50', target: 50, reward: 500, currency: 'tokens', label: 'Pro Collector', type: 'catch' },
+    { id: 'catch_100', target: 100, reward: 1000, currency: 'stardust', label: 'Master Collector', type: 'catch' },
+    { id: 'level_10', target: 10, reward: 200, currency: 'tokens', label: 'Rising Star', type: 'level' },
+    { id: 'level_30', target: 30, reward: 300, currency: 'stardust', label: 'Elite Trainer', type: 'level' },
+    { id: 'level_50', target: 50, reward: 1000, currency: 'stardust', label: 'Champion', type: 'level' },
+];
+
+export const NARRATIVE_EVENTS: NarrativeEvent[] = [
+    {
+        id: 'lost_item',
+        title: 'Lost Item Found',
+        description: 'You found a dusty Poké Ball on the ground while walking. What do you do?',
+        image: '🎁',
+        choices: [
+            { text: 'Open it', action: 'reward', value: 50, outcomeText: 'You found 50 Tokens inside!' },
+            { text: 'Leave it', action: 'nothing', outcomeText: 'You left it alone. Probably for the best.' }
+        ]
+    },
+    {
+        id: 'wild_encounter',
+        title: 'Wild Encounter',
+        description: 'A wild Pokémon jumps out of the tall grass! It looks aggressive.',
+        image: '🌿',
+        choices: [
+            { text: 'Fight it off', action: 'reward', value: 20, outcomeText: 'You scared it away and found 20 Stardust dropped nearby.' },
+            { text: 'Run away', action: 'nothing', outcomeText: 'You escaped safely.' }
+        ]
+    },
+    {
+        id: 'market_crash',
+        title: 'Market Crash',
+        description: 'The Token market is experiencing high volatility. An investor asks for a donation.',
+        image: '📉',
+        choices: [
+            { text: 'Donate 10 T', action: 'loss', value: 10, outcomeText: 'The investor thanks you. You feel generous.' },
+            { text: 'Ignore', action: 'nothing', outcomeText: 'You walked away.' }
+        ]
+    },
+    {
+        id: 'mysterious_merchant',
+        title: 'Mysterious Merchant',
+        description: 'A cloaked figure offers you a bag of Stardust for a small fee.',
+        image: '🧙‍♂️',
+        choices: [
+            { text: 'Pay 50 Tokens', action: 'reward', value: 100, outcomeText: 'He gives you 100 Stardust! Great deal!' },
+            { text: 'Decline', action: 'nothing', outcomeText: 'He vanishes into the shadows.' }
+        ]
+    }
+];

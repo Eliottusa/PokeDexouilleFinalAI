@@ -2,9 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import PokemonCard from '../components/PokemonCard';
 import Button from '../components/Button';
-import { Search, Filter, BarChart2, PieChart, ArrowUpDown, Dna, Archive, Shield, X, Check, Heart, Info, Clock, Sword } from 'lucide-react';
+import { Search, Filter, BarChart2, PieChart, ArrowUpDown, Dna, Archive, Shield, X, Check, Heart, Info, Clock, Sword, Grid, List as ListIcon } from 'lucide-react';
 import { Rarity, Pokemon } from '../types';
-import { GENERATIONS, TOTAL_POKEMON_COUNT, RELICS, TYPE_COLORS } from '../constants';
+import { GENERATIONS, TOTAL_POKEMON_COUNT, RELICS, TYPE_COLORS, STATUS_COLORS } from '../constants';
 
 const Pokedex: React.FC = () => {
   const { inventory, evolvePokemon, user, equipRelic, toggleFavorite } = useGame();
@@ -19,6 +19,7 @@ const Pokedex: React.FC = () => {
   const [evolveMode, setEvolveMode] = useState(false);
   const [equipMode, setEquipMode] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'compact'>('grid');
   
   const [processingAction, setProcessingAction] = useState<string | null>(null);
   
@@ -139,6 +140,22 @@ const Pokedex: React.FC = () => {
             <p className="text-slate-500 dark:text-slate-400">{showArchive ? 'Archived Pokémon storage.' : 'Manage your active collection.'}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
+            {/* View Mode Toggle */}
+            <div className="bg-slate-200 dark:bg-slate-800 rounded-lg p-1 flex">
+                <button 
+                    onClick={() => setViewMode('grid')}
+                    className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+                >
+                    <Grid size={16}/>
+                </button>
+                <button 
+                    onClick={() => setViewMode('compact')}
+                    className={`p-1.5 rounded-md transition-colors ${viewMode === 'compact' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+                >
+                    <ListIcon size={16}/>
+                </button>
+            </div>
+
             <button 
                 onClick={() => { setShowArchive(!showArchive); setEvolveMode(false); setEquipMode(false); }} 
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors ${showArchive ? 'bg-indigo-500/20 border-indigo-500 text-indigo-500' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
@@ -334,7 +351,7 @@ const Pokedex: React.FC = () => {
           </div>
       </div>
 
-      {/* Grid */}
+      {/* Content */}
       {sortedInventory.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-900/50">
             <p className="text-slate-500 text-lg">No Pokémon found.</p>
@@ -344,7 +361,8 @@ const Pokedex: React.FC = () => {
                 <p className="text-slate-500 text-sm mt-2">Go to the Lab to summon some!</p>
             )}
         </div>
-      ) : (
+      ) : viewMode === 'grid' ? (
+        /* GRID VIEW */
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
             {sortedInventory.map(pokemon => {
                 const canEvolve = evolutionCandidates.has(pokemon.apiId);
@@ -371,6 +389,53 @@ const Pokedex: React.FC = () => {
                         )}
                         {evolveMode && !showArchive && !canEvolve && (
                             <div className="absolute inset-0 bg-slate-950/80 rounded-xl z-20"></div>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+      ) : (
+        /* COMPACT LIST VIEW */
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {sortedInventory.map(pokemon => {
+                const canEvolve = evolutionCandidates.has(pokemon.apiId);
+                const cp = pokemon.stats.hp + pokemon.stats.attack + pokemon.stats.defense + pokemon.stats.speed;
+                return (
+                    <div 
+                        key={pokemon.id}
+                        onClick={() => {
+                            if (equipMode) setSelectedPokemonForEquip(pokemon.id);
+                            else if (!evolveMode) setViewingPokemon(pokemon);
+                        }}
+                        className={`flex items-center gap-3 bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary transition-all cursor-pointer ${equipMode && selectedPokemonForEquip === pokemon.id ? 'ring-2 ring-purple-500' : ''}`}
+                    >
+                        <img src={pokemon.sprite} className="w-10 h-10 object-contain" />
+                        
+                        <div className="flex-1 min-w-0">
+                            <div className="flex justify-between">
+                                <span className="font-bold text-slate-800 dark:text-white text-sm truncate">{pokemon.name}</span>
+                                <span className={`text-[10px] font-bold uppercase ${pokemon.rarity === Rarity.LEGENDARY ? 'text-amber-500' : 'text-slate-500'}`}>{pokemon.rarity}</span>
+                            </div>
+                            <div className="flex gap-2 text-xs text-slate-500">
+                                <span>CP {cp}</span>
+                                <span>•</span>
+                                <span className="capitalize">{pokemon.types.join('/')}</span>
+                            </div>
+                        </div>
+
+                        {pokemon.heldItem && RELICS[pokemon.heldItem] && (
+                            <span className="text-lg" title={RELICS[pokemon.heldItem].name}>{RELICS[pokemon.heldItem].icon}</span>
+                        )}
+
+                        {evolveMode && canEvolve && !showArchive && (
+                            <Button 
+                                size="sm" 
+                                variant="secondary" 
+                                onClick={(e) => { e.stopPropagation(); handleEvolve(pokemon); }}
+                                className="text-xs py-1 px-2 h-auto"
+                            >
+                                Evolve
+                            </Button>
                         )}
                     </div>
                 );

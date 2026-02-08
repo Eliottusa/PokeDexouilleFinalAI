@@ -1,6 +1,6 @@
 import React from 'react';
 import { useGame } from '../context/GameContext';
-import { Home, Zap, List, ShoppingBag, Sword, Award, Sun, CloudRain, Snowflake, Leaf, Users, Moon } from 'lucide-react';
+import { Home, Zap, List, ShoppingBag, Sword, Award, Sun, CloudRain, Snowflake, Leaf, Users, Moon, X, CheckCircle, AlertTriangle, Info } from 'lucide-react';
 import { ViewState } from '../types';
 
 interface LayoutProps {
@@ -8,7 +8,7 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { activeView, setView, user, season, theme, toggleTheme } = useGame();
+  const { activeView, setView, user, season, theme, toggleTheme, notifications, dismissNotification } = useGame();
 
   const SeasonIcon = {
     'Spring': Leaf,
@@ -40,6 +40,28 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${theme === 'light' ? 'bg-slate-50' : 'bg-slate-950'}`}>
+      {/* Toast Container */}
+      <div className="fixed top-4 right-4 z-[60] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+          {notifications.map(n => (
+              <div 
+                key={n.id} 
+                className={`pointer-events-auto flex items-center p-4 rounded-xl shadow-xl border animate-slide-in ${
+                    n.type === 'success' ? 'bg-green-50 dark:bg-slate-900 border-green-500 text-green-700 dark:text-green-400' :
+                    n.type === 'error' ? 'bg-red-50 dark:bg-slate-900 border-red-500 text-red-700 dark:text-red-400' :
+                    'bg-white dark:bg-slate-900 border-blue-500 text-slate-700 dark:text-white'
+                }`}
+              >
+                  <div className="mr-3">
+                      {n.type === 'success' && <CheckCircle size={20}/>}
+                      {n.type === 'error' && <AlertTriangle size={20}/>}
+                      {n.type === 'info' && <Info size={20} className="text-blue-500"/>}
+                  </div>
+                  <p className="text-sm font-medium flex-1">{n.message}</p>
+                  <button onClick={() => dismissNotification(n.id)} className="ml-2 opacity-50 hover:opacity-100"><X size={16}/></button>
+              </div>
+          ))}
+      </div>
+
       <div className="flex flex-col md:flex-row min-h-screen">
       {/* Mobile Header */}
       <div className="md:hidden bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 flex justify-between items-center sticky top-0 z-20">

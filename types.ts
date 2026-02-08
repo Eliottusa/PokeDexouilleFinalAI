@@ -97,6 +97,9 @@ export interface UserProfile {
   relics: Record<string, number>; // relicId -> count
   transactions: Transaction[];
   promptHistory: string[];
+  tutorialCompleted: boolean;
+  milestonesClaimed: string[];
+  lastSeasonClaimed?: string;
 }
 
 export type ViewState = 'dashboard' | 'generator' | 'pokedex' | 'battle' | 'marketplace' | 'social';
@@ -107,6 +110,34 @@ export interface GameEvent {
   description: string;
   effect: 'xp_boost' | 'token_boost' | 'stardust_boost' | 'shiny_boost';
   multiplier: number;
+}
+
+export interface NarrativeEvent {
+  id: string;
+  title: string;
+  description: string;
+  image?: string; // Optional emoji or icon
+  choices: {
+    text: string;
+    action: 'reward' | 'battle' | 'loss' | 'nothing';
+    value?: number; // amount of currency or item ID
+    outcomeText: string;
+  }[];
+}
+
+export interface Milestone {
+    id: string;
+    label: string;
+    target: number;
+    type: 'catch' | 'battle' | 'level';
+    reward: number;
+    currency: 'tokens' | 'stardust';
+}
+
+export interface Notification {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info' | 'warning';
 }
 
 export interface GameState {
@@ -120,6 +151,7 @@ export interface GameState {
   activeEvent?: GameEvent;
   theme: 'dark' | 'light';
   marketTrend: number; // 0.8 to 1.2 price multiplier
+  notifications: Notification[];
 }
 
 export interface SocialState {
@@ -181,6 +213,8 @@ export interface GameContextType extends GameState {
   prestigeUser: () => Promise<void>;
   toggleArchive: (id: string) => Promise<void>;
   toggleTheme: () => void;
+  completeTutorial: () => Promise<void>;
+  claimMilestone: (milestoneId: string) => Promise<void>;
   // Items & Relics
   buyItem: (itemId: string, count?: number) => Promise<void>;
   useItem: (itemId: string, pokemonId: string) => Promise<boolean>;
@@ -191,6 +225,9 @@ export interface GameContextType extends GameState {
   savePrompt: (prompt: string) => Promise<void>;
   // Favorites
   toggleFavorite: (id: string) => Promise<void>;
+  // Notifications
+  addNotification: (message: string, type?: Notification['type']) => void;
+  dismissNotification: (id: string) => void;
 }
 
 export interface TurnLog {

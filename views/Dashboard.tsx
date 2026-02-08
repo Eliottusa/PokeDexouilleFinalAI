@@ -1,11 +1,42 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGame } from '../context/GameContext';
-import { Trophy, Wallet, Zap, Star, Activity, Medal, Crown, Flame, ChevronUp } from 'lucide-react';
+import { Trophy, Wallet, Zap, Star, Activity, Medal, Crown, Flame, AlertCircle, Gift, ArrowRight } from 'lucide-react';
 import Button from '../components/Button';
-import { XP_PER_LEVEL, LEVEL_CAP } from '../constants';
+import { XP_PER_LEVEL, LEVEL_CAP, NARRATIVE_EVENTS, MILESTONES } from '../constants';
+import { NarrativeEvent } from '../types';
 
 const Dashboard: React.FC = () => {
-  const { user, inventory, setView, activeEvent, prestigeUser } = useGame();
+  const { user, inventory, setView, activeEvent, prestigeUser, updateTokens, updateStardust, claimMilestone, season } = useGame();
+  
+  const [activeNarrative, setActiveNarrative] = useState<NarrativeEvent | null>(null);
+  const [narrativeResult, setNarrativeResult] = useState<string | null>(null);
+
+  // Trigger Narrative Event on Mount (10% Chance)
+  useEffect(() => {
+      const chance = Math.random();
+      if (chance < 0.1 && !activeNarrative && !narrativeResult) {
+          const event = NARRATIVE_EVENTS[Math.floor(Math.random() * NARRATIVE_EVENTS.length)];
+          // Only trigger if not in battle or something critical
+          const timer = setTimeout(() => setActiveNarrative(event), 1000);
+          return () => clearTimeout(timer);
+      }
+  }, []);
+
+  const handleNarrativeChoice = async (choice: NarrativeEvent['choices'][0]) => {
+      setNarrativeResult(choice.outcomeText);
+      
+      if (choice.action === 'reward' && choice.value) {
+          await updateTokens(choice.value); // Assume mostly tokens for simplicity, or handle specific item logic
+      } else if (choice.action === 'loss' && choice.value) {
+          await updateTokens(-choice.value);
+      }
+      // Battle could route to a battle view, but keeping it simple text for now
+      
+      setTimeout(() => {
+          setActiveNarrative(null);
+          setNarrativeResult(null);
+      }, 3000);
+  };
 
   const StatCard = ({ label, value, icon: Icon, color, subtext }: any) => (
     <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-6 rounded-2xl flex items-center gap-4 shadow-lg hover:shadow-xl transition-all">
@@ -23,9 +54,46 @@ const Dashboard: React.FC = () => {
   const recentAcquisitions = inventory.filter(p => !p.isArchived).slice(0, 3);
   const xpProgress = (user.xp % XP_PER_LEVEL) / XP_PER_LEVEL * 100;
 
+  // Calculate Milestone Progress
+  const getMilestoneProgress = (m: typeof MILESTONES[0]) => {
+      if (m.type === 'catch') return Math.min(100, (inventory.length / m.target) * 100);
+      if (m.type === 'level') return Math.min(100, (user.level / m.target) * 100);
+      return 0;
+  };
+
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in relative">
       
+      {/* Narrative Modal */}
+      {(activeNarrative || narrativeResult) && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full shadow-2xl p-6 text-center">
+                  {narrativeResult ? (
+                      <div className="py-8">
+                          <p className="text-lg text-slate-700 dark:text-slate-300 font-medium">{narrativeResult}</p>
+                      </div>
+                  ) : (
+                      <>
+                        <div className="text-4xl mb-4">{activeNarrative!.image}</div>
+                        <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">{activeNarrative!.title}</h3>
+                        <p className="text-slate-500 dark:text-slate-400 mb-6">{activeNarrative!.description}</p>
+                        <div className="space-y-3">
+                            {activeNarrative!.choices.map((choice, i) => (
+                                <button 
+                                    key={i}
+                                    onClick={() => handleNarrativeChoice(choice)}
+                                    className="w-full p-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-white transition-colors border border-slate-200 dark:border-slate-700"
+                                >
+                                    {choice.text}
+                                </button>
+                            ))}
+                        </div>
+                      </>
+                  )}
+              </div>
+          </div>
+      )}
+
       {/* Event Banner */}
       {activeEvent && (
           <div className="bg-gradient-to-r from-indigo-900 to-purple-900 rounded-2xl p-6 border border-indigo-700 relative overflow-hidden shadow-2xl">
@@ -109,60 +177,108 @@ const Dashboard: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Quick Actions */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 lg:col-span-1">
-            <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                <Activity size={20} className="text-primary"/> 
-                Quick Actions
-            </h3>
-            <div className="space-y-3">
-                <Button onClick={() => setView('generator')} className="w-full justify-between group">
-                    <span>Summon Pokémon</span>
-                    <span className="bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-300 text-xs px-2 py-1 rounded group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors">10 T</span>
-                </Button>
-                <Button onClick={() => setView('pokedex')} variant="secondary" className="w-full justify-between">
-                    <span>Manage Inventory</span>
-                    <span className="bg-white/20 text-white text-xs px-2 py-1 rounded">{inventory.length}</span>
-                </Button>
-            </div>
+        
+        {/* Main Column */}
+        <div className="lg:col-span-2 space-y-8">
             
-            <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700/50">
-                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Tip</h4>
-                <p className="text-xs text-slate-500">
-                    Prestige grants a permanent +10% bonus to all resource gains and unlocks rare Legacy Pokémon!
-                </p>
+            {/* Recent Activity */}
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold text-slate-800 dark:text-white">Recent Catches</h3>
+                    <Button variant="ghost" onClick={() => setView('pokedex')} className="text-xs">View All</Button>
+                </div>
+                
+                {recentAcquisitions.length === 0 ? (
+                    <div className="text-center py-12 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl">
+                        <p className="text-slate-500 mb-4">No active Pokémon found.</p>
+                        <Button onClick={() => setView('generator')}>Go to Lab</Button>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {recentAcquisitions.map(p => (
+                            <div key={p.id} className="bg-slate-50 dark:bg-slate-900 p-3 rounded-xl flex items-center gap-3 border border-slate-200 dark:border-slate-700">
+                                <img src={p.sprite} alt={p.name} className="w-12 h-12 object-contain" />
+                                <div>
+                                    <p className="font-bold text-slate-700 dark:text-white capitalize text-sm">{p.name}</p>
+                                    <p className="text-xs text-slate-500 capitalize">{p.rarity}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Milestones */}
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6">
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                    <Trophy size={20} className="text-yellow-500" /> Milestones
+                </h3>
+                <div className="space-y-4">
+                    {MILESTONES.map(m => {
+                        const progress = getMilestoneProgress(m);
+                        const isCompleted = progress >= 100;
+                        const isClaimed = user.milestonesClaimed.includes(m.id);
+
+                        return (
+                            <div key={m.id} className="flex items-center gap-4 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                                <div className={`p-2 rounded-full ${isClaimed ? 'bg-green-500/10 text-green-500' : 'bg-slate-200 dark:bg-slate-800 text-slate-400'}`}>
+                                    {isClaimed ? <Gift size={20} /> : <TargetIcon type={m.type}/>}
+                                </div>
+                                <div className="flex-1">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="font-bold text-sm text-slate-800 dark:text-white">{m.label}</span>
+                                        <span className="text-xs text-slate-500">{isClaimed ? 'Claimed' : `${m.reward} ${m.currency === 'tokens' ? 'T' : 'Dust'}`}</span>
+                                    </div>
+                                    <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                        <div className={`h-full ${isCompleted ? 'bg-green-500' : 'bg-primary'}`} style={{ width: `${progress}%` }}></div>
+                                    </div>
+                                </div>
+                                {isCompleted && !isClaimed && (
+                                    <Button size="sm" onClick={() => claimMilestone(m.id)} className="animate-pulse">Claim</Button>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         </div>
 
-        {/* Recent Activity / Showcase */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 lg:col-span-2">
-            <div className="flex justify-between items-center mb-6">
-                 <h3 className="text-xl font-bold text-slate-800 dark:text-white">Recent Catches</h3>
-                 <Button variant="ghost" onClick={() => setView('pokedex')} className="text-xs">View All</Button>
+        {/* Sidebar Column */}
+        <div className="space-y-8">
+            {/* Quick Actions */}
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6">
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                    <Activity size={20} className="text-primary"/> 
+                    Quick Actions
+                </h3>
+                <div className="space-y-3">
+                    <Button onClick={() => setView('generator')} className="w-full justify-between group">
+                        <span>Summon Pokémon</span>
+                        <span className="bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-300 text-xs px-2 py-1 rounded group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors">10 T</span>
+                    </Button>
+                    <Button onClick={() => setView('pokedex')} variant="secondary" className="w-full justify-between">
+                        <span>Manage Inventory</span>
+                        <span className="bg-white/20 text-white text-xs px-2 py-1 rounded">{inventory.length}</span>
+                    </Button>
+                </div>
+                
+                <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                    <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Tip</h4>
+                    <p className="text-xs text-slate-500">
+                        Prestige grants a permanent +10% bonus to all resource gains and unlocks rare Legacy Pokémon!
+                    </p>
+                </div>
             </div>
-            
-            {recentAcquisitions.length === 0 ? (
-                <div className="text-center py-12 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl">
-                    <p className="text-slate-500 mb-4">No active Pokémon found.</p>
-                    <Button onClick={() => setView('generator')}>Go to Lab</Button>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {recentAcquisitions.map(p => (
-                         <div key={p.id} className="bg-slate-50 dark:bg-slate-900 p-3 rounded-xl flex items-center gap-3 border border-slate-200 dark:border-slate-700">
-                             <img src={p.sprite} alt={p.name} className="w-12 h-12 object-contain" />
-                             <div>
-                                 <p className="font-bold text-slate-700 dark:text-white capitalize text-sm">{p.name}</p>
-                                 <p className="text-xs text-slate-500 capitalize">{p.rarity}</p>
-                             </div>
-                         </div>
-                    ))}
-                </div>
-            )}
         </div>
       </div>
     </div>
   );
+};
+
+const TargetIcon = ({ type }: { type: string }) => {
+    if (type === 'catch') return <Zap size={20} />;
+    if (type === 'level') return <Activity size={20} />;
+    return <Star size={20} />;
 };
 
 export default Dashboard;

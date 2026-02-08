@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { GameContextType, GameState, Pokemon, UserProfile, ViewState, MarketListing, Season, SEASONS, SocialState, RivalChallenge, GameEvent, Transaction } from '../types';
+import { GameContextType, GameState, Pokemon, UserProfile, ViewState, MarketListing, Season, SEASONS, SocialState, RivalChallenge, GameEvent, Transaction, Milestone, Notification } from '../types';
 import { getUserProfile, getInventory, saveUserProfile, addPokemonToInventory, removePokemonFromInventory } from '../services/db';
-import { INITIAL_USER_STATE, COSTS, TRAINER_TITLES, XP_PER_LEVEL, SEASONAL_EVENTS, ITEMS, RELICS } from '../constants';
+import { INITIAL_USER_STATE, COSTS, TRAINER_TITLES, XP_PER_LEVEL, SEASONAL_EVENTS, ITEMS, RELICS, MILESTONES } from '../constants';
 import { generateMarketListings } from '../services/marketLogic';
 import { generateMockLeaderboard, generateTradeOffers, initialGuildState } from '../services/socialService';
 import { fetchEvolution, fetchRandomPokemon } from '../services/pokeApi';
@@ -37,6 +37,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activeEvent, setActiveEvent] = useState<GameEvent | undefined>(undefined);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [marketTrend, setMarketTrend] = useState<number>(1.0);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   
   // Social State
   const [social, setSocial] = useState<SocialState>({
@@ -45,6 +46,51 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     guild: initialGuildState,
     rivalBattle: undefined
   });
+
+  const addNotification = (message: string, type: Notification['type'] = 'info') => {
+      const id = Date.now().toString();
+      setNotifications(prev => [...prev, { id, message, type }]);
+      setTimeout(() => dismissNotification(id), 4000);
+  };
+
+  const dismissNotification = (id: string) => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  const checkSeasonalRewards = async (currentUser: UserProfile, currentSeason: Season) => {
+      if (!currentUser.lastSeasonClaimed) {
+          // First time load, just set current season without reward
+          const updatedUser = { ...currentUser, lastSeasonClaimed: currentSeason };
+          setUser(prev => ({ ...prev, lastSeasonClaimed: currentSeason }));
+          saveUserProfile(updatedUser).catch(console.error);
+          return;
+      }
+
+      if (currentUser.lastSeasonClaimed !== currentSeason) {
+          // Season changed! Give rewards.
+          const scoreBonus = Math.floor(currentUser.pokedexScore * 0.5); // 50% of score as tokens
+          const stardustBonus = 250; // Flat bonus
+          
+          // Decay score for new season rank reset
+          const newScore = Math.floor(currentUser.pokedexScore * 0.8);
+
+          await updateTokens(scoreBonus);
+          await updateStardust(stardustBonus);
+          
+          setUser(prev => {
+              const updated = { 
+                  ...prev, 
+                  pokedexScore: newScore,
+                  lastSeasonClaimed: currentSeason 
+              };
+              saveUserProfile(updated).catch(console.error);
+              return updated;
+          });
+
+          addNotification(`Season Change: ${currentSeason}! Rewards claimed: ${scoreBonus} T + ${stardustBonus} Dust.`, 'success');
+          playSound('success');
+      }
+  };
 
   const refreshData = async () => {
     setIsLoading(true);
@@ -60,6 +106,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       else if (month >= 8 && month <= 10) currentSeason = 'Autumn';
       else currentSeason = 'Winter';
       setSeason(currentSeason);
+
+      // Check for seasonal rollover logic
+      checkSeasonalRewards(u, currentSeason);
 
       const events = SEASONAL_EVENTS[currentSeason];
       if (events && events.length > 0) {
@@ -78,6 +127,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     } catch (e) {
       console.error("Failed to load initial data", e);
+      addNotification("Failed to load data.", 'error');
     } finally {
       setIsLoading(false);
     }
@@ -130,7 +180,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const eventMult = activeEvent?.effect === 'token_boost' && amount > 0 ? activeEvent.multiplier : 1;
         const adjustedAmount = amount > 0 ? Math.floor(amount * prestigeMult * eventMult) : amount;
         
-        const newUser = { ...prev, tokens: prev.tokens + adjustedAmount };
+        const newUser = { ...prev, tokens: Math.max(0, prev.tokens + adjustedAmount) };
         saveUserProfile(newUser).catch(console.error);
         return newUser;
     });
@@ -173,6 +223,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (newLevel > prev.level) {
             playSound('success');
+            addNotification(`Level Up! You are now Level ${newLevel}!`, 'success');
         }
         
         const newUser = { ...prev, xp: newXp, level: newLevel };
@@ -192,8 +243,34 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
           saveUserProfile(newUser).catch(console.error);
           playSound('evolve');
+          addNotification('Prestige Advanced! XP Gains +10%.', 'success');
           return newUser;
       });
+  };
+
+  const completeTutorial = async () => {
+      setUser(prev => {
+          const newUser = { ...prev, tutorialCompleted: true };
+          saveUserProfile(newUser).catch(console.error);
+          return newUser;
+      });
+  };
+
+  const claimMilestone = async (milestoneId: string) => {
+      const milestone = MILESTONES.find(m => m.id === milestoneId);
+      if (!milestone) return;
+      
+      setUser(prev => {
+          if (prev.milestonesClaimed.includes(milestoneId)) return prev;
+          const newUser = { ...prev, milestonesClaimed: [...prev.milestonesClaimed, milestoneId] };
+          saveUserProfile(newUser).catch(console.error);
+          return newUser;
+      });
+
+      if (milestone.currency === 'tokens') await updateTokens(milestone.reward);
+      else await updateStardust(milestone.reward);
+      playSound('success');
+      addNotification(`Milestone Claimed: ${milestone.label}!`, 'success');
   };
 
   const savePrompt = async (prompt: string) => {
@@ -222,6 +299,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await addPokemonToInventory(pWithHistory);
     await addScore(10);
     playSound('success');
+    addNotification(`Caught ${pokemon.name}!`, 'success');
   };
 
   const updatePokemon = async (pokemon: Pokemon) => {
@@ -246,6 +324,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (updatedPokemon) {
           await addPokemonToInventory(updatedPokemon);
           playSound('click');
+          addNotification(updatedPokemon.isArchived ? "Sent to Vault" : "Returned to Pokedex");
       }
   };
 
@@ -289,14 +368,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             evolvedForm.history = [`Evolved from ${basePokemon.name} on ${new Date().toLocaleDateString()}`];
             await addPokemon(evolvedForm);
             playSound('evolve');
+            addNotification(`Evolution Successful! ${basePokemon.name} evolved into ${evolvedForm.name}!`, 'success');
             return true;
         } else {
             playSound('error');
+            addNotification("This Pokémon cannot evolve further.", 'error');
             return false;
         }
     } catch (e) {
         console.error("Evolution failed", e);
         playSound('error');
+        addNotification("Evolution failed due to an error.", 'error');
         return false;
     }
   };
@@ -309,6 +391,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshMarket = async () => {
     if (user.tokens < COSTS.MARKET_REFRESH) {
         playSound('error');
+        addNotification("Not enough tokens to refresh.", 'error');
         return;
     }
     await updateTokens(-COSTS.MARKET_REFRESH);
@@ -319,6 +402,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newListings = await generateMarketListings(3);
     setMarketListings(newListings);
     playSound('click');
+    addNotification("Market Refreshed");
   };
 
   const buyMarketItem = async (listingId: string) => {
@@ -329,10 +413,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const finalPrice = Math.floor(listing.price * marketTrend);
 
     if (listing.currency === 'tokens') {
-        if (user.tokens < finalPrice) { playSound('error'); return; }
+        if (user.tokens < finalPrice) { 
+            playSound('error'); 
+            addNotification("Insufficient Tokens.", 'error');
+            return; 
+        }
         await updateTokens(-finalPrice);
     } else {
-        if (user.stardust < finalPrice) { playSound('error'); return; }
+        if (user.stardust < finalPrice) { 
+            playSound('error'); 
+            addNotification("Insufficient Stardust.", 'error');
+            return; 
+        }
         await updateStardust(-finalPrice);
     }
 
@@ -340,6 +432,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await addPokemon(pokemon);
     logTransaction('buy', listing.pokemon.name, finalPrice, listing.currency);
     setMarketListings(prev => prev.map(l => l.id === listingId ? { ...l, sold: true } : l));
+    addNotification("Purchase Successful!", 'success');
   };
 
   // Item Logic
@@ -350,6 +443,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (user.tokens < totalCost) {
           playSound('error');
+          addNotification("Insufficient Tokens.", 'error');
           return;
       }
       
@@ -363,6 +457,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       logTransaction('buy', `${item.name} x${count}`, totalCost, 'tokens');
       playSound('success');
+      addNotification(`Bought ${item.name}`, 'success');
   };
 
   const useItem = async (itemId: string, pokemonId: string): Promise<boolean> => {
@@ -391,10 +486,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const price = Math.floor(relic.price * marketTrend);
 
       if (relic.currency === 'tokens') {
-          if (user.tokens < price) { playSound('error'); return; }
+          if (user.tokens < price) { 
+              playSound('error'); 
+              addNotification("Insufficient Tokens.", 'error');
+              return; 
+          }
           await updateTokens(-price);
       } else {
-          if (user.stardust < price) { playSound('error'); return; }
+          if (user.stardust < price) { 
+              playSound('error'); 
+              addNotification("Insufficient Stardust.", 'error');
+              return; 
+          }
           await updateStardust(-price);
       }
 
@@ -407,11 +510,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       logTransaction('buy', relic.name, price, relic.currency);
       playSound('success');
+      addNotification(`Bought ${relic.name}`, 'success');
   };
 
   const equipRelic = async (pokemonId: string, relicId: string) => {
       const pokemon = inventory.find(p => p.id === pokemonId);
-      if (!pokemon || (user.relics?.[relicId] || 0) <= 0) { playSound('error'); return; }
+      if (!pokemon || (user.relics?.[relicId] || 0) <= 0) { 
+          playSound('error'); 
+          return; 
+      }
 
       // If already holding something, unequip it first
       if (pokemon.heldItem) {
@@ -430,6 +537,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const history = [...(pokemon.history || []), `Equipped ${relicName} on ${new Date().toLocaleDateString()}`];
       await updatePokemon({ ...pokemon, heldItem: relicId, history });
       playSound('click');
+      addNotification(`Equipped ${relicName}`);
   };
 
   const unequipRelic = async (pokemonId: string) => {
@@ -450,6 +558,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return newUser;
       });
       playSound('click');
+      addNotification(`Unequipped ${RELICS[itemToReturn]?.name || 'Item'}`);
   };
 
   const acceptTrade = async (offerId: string, myPokemonId: string) => {
@@ -470,11 +579,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...prev,
         trades: prev.trades.filter(t => t.id !== offerId)
     }));
+    addNotification("Trade Completed!", 'success');
   };
 
   const contributeToGuild = async (amount: number) => {
     if (user.stardust < amount) {
         playSound('error');
+        addNotification("Not enough Stardust.", 'error');
         return;
     }
     await updateStardust(-amount);
@@ -488,8 +599,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             newLevel++;
             newGoal = Math.floor(newGoal * 1.5);
             playSound('success');
+            addNotification(`Guild Leveled Up to ${newLevel}!`, 'success');
         } else {
             playSound('click');
+            addNotification(`Contributed ${amount} Stardust.`);
         }
 
         return {
@@ -539,6 +652,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     activeEvent,
     theme,
     marketTrend,
+    notifications,
     setView,
     addPokemon,
     updatePokemon,
@@ -565,7 +679,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     equipRelic,
     unequipRelic,
     savePrompt,
-    toggleFavorite
+    toggleFavorite,
+    completeTutorial,
+    claimMilestone,
+    addNotification,
+    dismissNotification
   };
 
   return (

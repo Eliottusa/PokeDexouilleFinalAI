@@ -7,9 +7,10 @@ import Pokedex from './views/Pokedex';
 import Battle from './views/Battle';
 import Marketplace from './views/Marketplace';
 import SocialHub from './views/SocialHub';
+import Tutorial from './components/Tutorial';
 
 const GameRouter: React.FC = () => {
-  const { activeView, isLoading } = useGame();
+  const { activeView, isLoading, user } = useGame();
 
   if (isLoading) {
     return (
@@ -23,14 +24,17 @@ const GameRouter: React.FC = () => {
   }
 
   return (
-    <Layout>
-      {activeView === 'dashboard' && <Dashboard />}
-      {activeView === 'generator' && <Generator />}
-      {activeView === 'pokedex' && <Pokedex />}
-      {activeView === 'battle' && <Battle />}
-      {activeView === 'marketplace' && <Marketplace />}
-      {activeView === 'social' && <SocialHub />}
-    </Layout>
+    <>
+      <Layout>
+        {activeView === 'dashboard' && <Dashboard />}
+        {activeView === 'generator' && <Generator />}
+        {activeView === 'pokedex' && <Pokedex />}
+        {activeView === 'battle' && <Battle />}
+        {activeView === 'marketplace' && <Marketplace />}
+        {activeView === 'social' && <SocialHub />}
+      </Layout>
+      {!user.tutorialCompleted && <Tutorial />}
+    </>
   );
 };
 
