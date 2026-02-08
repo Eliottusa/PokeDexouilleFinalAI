@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { GameContextType, GameState, Pokemon, UserProfile, ViewState, MarketListing, Season, SEASONS, SocialState, RivalChallenge } from '../types';
+import { GameContextType, GameState, Pokemon, UserProfile, ViewState, MarketListing, Season, SEASONS, SocialState, RivalChallenge, GameEvent } from '../types';
 import { getUserProfile, getInventory, saveUserProfile, addPokemonToInventory, removePokemonFromInventory } from '../services/db';
-import { INITIAL_USER_STATE, COSTS, TRAINER_TITLES } from '../constants';
+import { INITIAL_USER_STATE, COSTS, TRAINER_TITLES, XP_PER_LEVEL, SEASONAL_EVENTS } from '../constants';
 import { generateMarketListings } from '../services/marketLogic';
 import { generateMockLeaderboard, generateTradeOffers, initialGuildState } from '../services/socialService';
 import { fetchEvolution, fetchRandomPokemon } from '../services/pokeApi';
@@ -34,6 +34,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Transient state
   const [marketListings, setMarketListings] = useState<MarketListing[]>([]);
   const [season, setSeason] = useState<Season>('Spring');
+  const [activeEvent, setActiveEvent] = useState<GameEvent | undefined>(undefined);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   
   // Social State
   const [social, setSocial] = useState<SocialState>({
@@ -50,11 +52,20 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(u);
       setInventory(i);
       
+      // Determine Season
       const month = new Date().getMonth();
-      if (month >= 2 && month <= 4) setSeason('Spring');
-      else if (month >= 5 && month <= 7) setSeason('Summer');
-      else if (month >= 8 && month <= 10) setSeason('Autumn');
-      else setSeason('Winter');
+      let currentSeason: Season = 'Spring';
+      if (month >= 2 && month <= 4) currentSeason = 'Spring';
+      else if (month >= 5 && month <= 7) currentSeason = 'Summer';
+      else if (month >= 8 && month <= 10) currentSeason = 'Autumn';
+      else currentSeason = 'Winter';
+      setSeason(currentSeason);
+
+      // Set Event
+      const events = SEASONAL_EVENTS[currentSeason];
+      if (events && events.length > 0) {
+        setActiveEvent(events[0]);
+      }
 
       const initialListings = await generateMarketListings(3);
       setMarketListings(initialListings);
@@ -73,20 +84,50 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     refreshData();
+    // Check system preference for theme
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+       setTheme('light');
+    }
   }, []);
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+
+  const getMultipliers = (currentUser: UserProfile) => {
+    const prestigeMult = 1 + (currentUser.prestige * 0.1); // +10% per prestige
+    return { prestigeMult };
+  };
 
   // Use functional updates to prevent race conditions and stale closures
   const updateTokens = async (amount: number) => {
     setUser(prev => {
-        const newUser = { ...prev, tokens: prev.tokens + amount };
-        saveUserProfile(newUser).catch(console.error); // Save asynchronously
+        const { prestigeMult } = getMultipliers(prev);
+        const eventMult = activeEvent?.effect === 'token_boost' && amount > 0 ? activeEvent.multiplier : 1;
+        
+        const adjustedAmount = amount > 0 ? Math.floor(amount * prestigeMult * eventMult) : amount;
+        
+        const newUser = { ...prev, tokens: prev.tokens + adjustedAmount };
+        saveUserProfile(newUser).catch(console.error);
         return newUser;
     });
   };
 
   const updateStardust = async (amount: number) => {
     setUser(prev => {
-        const newUser = { ...prev, stardust: Math.max(0, prev.stardust + amount) };
+        const { prestigeMult } = getMultipliers(prev);
+        const eventMult = activeEvent?.effect === 'stardust_boost' && amount > 0 ? activeEvent.multiplier : 1;
+        const adjustedAmount = amount > 0 ? Math.floor(amount * prestigeMult * eventMult) : amount;
+
+        const newUser = { ...prev, stardust: Math.max(0, prev.stardust + adjustedAmount) };
         saveUserProfile(newUser).catch(console.error);
         return newUser;
     });
@@ -110,6 +151,42 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const gainXp = async (amount: number) => {
+    setUser(prev => {
+        const { prestigeMult } = getMultipliers(prev);
+        const eventMult = activeEvent?.effect === 'xp_boost' ? activeEvent!.multiplier : 1;
+        
+        const adjustedAmount = Math.floor(amount * prestigeMult * eventMult);
+        const newXp = prev.xp + adjustedAmount;
+        const newLevel = Math.floor(newXp / XP_PER_LEVEL) + 1; 
+
+        if (newLevel > prev.level) {
+            playSound('success');
+        }
+        
+        const newUser = { ...prev, xp: newXp, level: newLevel };
+        saveUserProfile(newUser).catch(console.error);
+        return newUser;
+    });
+  };
+
+  const prestigeUser = async () => {
+      setUser(prev => {
+          if (prev.level < 50) return prev;
+          
+          const newUser: UserProfile = {
+              ...prev,
+              level: 1,
+              xp: 0,
+              prestige: prev.prestige + 1,
+              // Keep tokens/stardust/score/inventory
+          };
+          saveUserProfile(newUser).catch(console.error);
+          playSound('evolve');
+          return newUser;
+      });
+  };
+
   const addPokemon = async (pokemon: Pokemon) => {
     setInventory(prev => [pokemon, ...prev]);
     await addPokemonToInventory(pokemon);
@@ -122,8 +199,25 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await removePokemonFromInventory(id);
   };
 
+  const toggleArchive = async (id: string) => {
+      let updatedPokemon: Pokemon | undefined;
+      setInventory(prev => prev.map(p => {
+          if (p.id === id) {
+              updatedPokemon = { ...p, isArchived: !p.isArchived };
+              return updatedPokemon;
+          }
+          return p;
+      }));
+      
+      if (updatedPokemon) {
+          // In a real app we might move to a different store, but here we just update the flag
+          await addPokemonToInventory(updatedPokemon); // Overwrite
+          playSound('click');
+      }
+  };
+
   const evolvePokemon = async (basePokemon: Pokemon): Promise<boolean> => {
-    const copies = inventory.filter(p => p.apiId === basePokemon.apiId);
+    const copies = inventory.filter(p => p.apiId === basePokemon.apiId && !p.isArchived);
     if (copies.length < 3) return false;
 
     try {
@@ -134,6 +228,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const toRemove = copies.slice(0, 3);
             for (const p of toRemove) {
                 await removePokemon(p.id);
+            }
+            // Preserve Legacy status if base was Legacy? For now, new summons are new.
+            // Maybe give a small bonus chance for legacy if evolving legacy?
+            if (basePokemon.isLegacy) {
+                evolvedForm.isLegacy = true;
+                evolvedForm.stats = {
+                    hp: Math.floor(evolvedForm.stats.hp * 1.1),
+                    attack: Math.floor(evolvedForm.stats.attack * 1.1),
+                    defense: Math.floor(evolvedForm.stats.defense * 1.1),
+                    speed: Math.floor(evolvedForm.stats.speed * 1.1),
+                };
             }
             await addPokemon(evolvedForm);
             playSound('evolve');
@@ -262,12 +367,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     marketListings,
     season,
     social,
+    activeEvent,
+    theme,
     setView,
     addPokemon,
     removePokemon,
     updateTokens,
     updateStardust,
     addScore,
+    gainXp,
     refreshData,
     refreshMarket,
     buyMarketItem,
@@ -276,7 +384,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     acceptTrade,
     contributeToGuild,
     startRivalBattle,
-    clearRivalBattle
+    clearRivalBattle,
+    prestigeUser,
+    toggleArchive,
+    toggleTheme
   };
 
   return (

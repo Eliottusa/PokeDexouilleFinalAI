@@ -68,11 +68,11 @@
 - [x] Guild cooperative challenges (Stardust donation system)
 - [x] NPC rival trainers with progression (High-stakes rival battles)
 
-### Planned – Long-Term Progression
+### Long-Term Progression (Done)
 
-- [ ] Prestige system after max level
-- [ ] Legacy Pokémon with special markers
-- [ ] Archive system for retired Pokémon
-- [ ] End-of-season summaries
-- [ ] Narrative events tied to seasons
-- [ ] Add a light/dark mode
+- [x] Prestige system after max level (Reset Level 50 -> 1, +Multiplier)
+- [x] Legacy Pokémon with special markers (Unlocked via Prestige)
+- [x] Archive system for retired Pokémon (Vault)
+- [x] End-of-season summaries / Active Event Banner
+- [x] Narrative events tied to seasons (Bonus effects)
+- [x] Add a light/dark mode (Theme Toggle)

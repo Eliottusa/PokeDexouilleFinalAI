@@ -52,14 +52,29 @@ const Generator: React.FC = () => {
         newPokemon = await generateAiPokemon(mode === 'custom' ? customPrompt : undefined);
       }
       
+      // Legacy Chance (Only if Prestige > 0)
+      if (user.prestige > 0 && Math.random() < 0.1) {
+          newPokemon.isLegacy = true;
+          // Buff Stats
+          newPokemon.stats = {
+              hp: Math.floor(newPokemon.stats.hp * 1.2),
+              attack: Math.floor(newPokemon.stats.attack * 1.2),
+              defense: Math.floor(newPokemon.stats.defense * 1.2),
+              speed: Math.floor(newPokemon.stats.speed * 1.2),
+          };
+      }
+
       // Simulate capture animation delay
+      // Faster animation if legacy or prestiged
+      const delay = user.prestige > 2 ? 500 : 1500;
+      
       setAnimationPhase('capturing');
       setTimeout(async () => {
          await addPokemon(newPokemon);
          setGeneratedPokemon(newPokemon);
          setAnimationPhase('revealed');
          setIsGenerating(false);
-      }, 1500);
+      }, delay);
       
     } catch (err) {
       console.error(err);
@@ -73,44 +88,44 @@ const Generator: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto space-y-8 animate-fade-in pb-20">
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-white mb-2">Genetic Lab</h2>
-        <p className="text-slate-400">Synthesize new lifeforms using Tokens.</p>
+        <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">Genetic Lab</h2>
+        <p className="text-slate-500 dark:text-slate-400">Synthesize new lifeforms using Tokens.</p>
       </div>
 
       {/* Mode Selector */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-800 p-2 rounded-xl border border-slate-700">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
         <button 
             onClick={() => setMode('standard')}
-            className={`flex flex-col items-center p-4 rounded-lg transition-all ${mode === 'standard' ? 'bg-slate-700 ring-2 ring-primary shadow-lg' : 'hover:bg-slate-750'}`}
+            className={`flex flex-col items-center p-4 rounded-lg transition-all ${mode === 'standard' ? 'bg-slate-100 dark:bg-slate-700 ring-2 ring-primary shadow-lg' : 'hover:bg-slate-50 dark:hover:bg-slate-750'}`}
         >
             <Dna size={24} className="text-blue-400 mb-2" />
-            <span className="font-bold text-white text-sm">Standard</span>
-            <span className="text-xs text-slate-400 mt-1">{COSTS.SUMMON_STANDARD} T</span>
+            <span className="font-bold text-slate-700 dark:text-white text-sm">Standard</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">{COSTS.SUMMON_STANDARD} T</span>
         </button>
 
         <button 
             onClick={() => setMode('ai')}
-            className={`flex flex-col items-center p-4 rounded-lg transition-all ${mode === 'ai' ? 'bg-slate-700 ring-2 ring-pink-500 shadow-lg' : 'hover:bg-slate-750'}`}
+            className={`flex flex-col items-center p-4 rounded-lg transition-all ${mode === 'ai' ? 'bg-slate-100 dark:bg-slate-700 ring-2 ring-pink-500 shadow-lg' : 'hover:bg-slate-50 dark:hover:bg-slate-750'}`}
         >
             <Sparkles size={24} className="text-pink-400 mb-2" />
-            <span className="font-bold text-white text-sm">Random AI</span>
-            <span className="text-xs text-slate-400 mt-1">{COSTS.SUMMON_AI} T</span>
+            <span className="font-bold text-slate-700 dark:text-white text-sm">Random AI</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">{COSTS.SUMMON_AI} T</span>
         </button>
 
         <button 
             onClick={() => setMode('custom')}
-            className={`flex flex-col items-center p-4 rounded-lg transition-all ${mode === 'custom' ? 'bg-slate-700 ring-2 ring-purple-500 shadow-lg' : 'hover:bg-slate-750'}`}
+            className={`flex flex-col items-center p-4 rounded-lg transition-all ${mode === 'custom' ? 'bg-slate-100 dark:bg-slate-700 ring-2 ring-purple-500 shadow-lg' : 'hover:bg-slate-50 dark:hover:bg-slate-750'}`}
         >
             <Command size={24} className="text-purple-400 mb-2" />
-            <span className="font-bold text-white text-sm">Custom AI</span>
-            <span className="text-xs text-slate-400 mt-1">{COSTS.SUMMON_CUSTOM} T</span>
+            <span className="font-bold text-slate-700 dark:text-white text-sm">Custom AI</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">{COSTS.SUMMON_CUSTOM} T</span>
         </button>
       </div>
 
       {/* Action Area */}
       <div className="flex flex-col items-center justify-center py-4 min-h-[300px]">
         {error && (
-            <div className="bg-red-500/10 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg mb-6 flex items-center gap-2 w-full">
+            <div className="bg-red-500/10 border border-red-500/50 text-red-600 dark:text-red-200 px-4 py-3 rounded-lg mb-6 flex items-center gap-2 w-full">
                 <AlertCircle size={16} />
                 {error}
             </div>
@@ -118,12 +133,12 @@ const Generator: React.FC = () => {
 
         {mode === 'custom' && animationPhase === 'idle' && (
             <div className="w-full mb-6">
-                <label className="block text-sm font-medium text-slate-300 mb-2">Describe your Genetic Code</label>
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">Describe your Genetic Code</label>
                 <textarea 
                     value={customPrompt}
                     onChange={(e) => setCustomPrompt(e.target.value)}
                     placeholder="E.g., A mechanical dragon made of rusty gears that breathes steam..."
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-purple-500 focus:outline-none min-h-[100px]"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none min-h-[100px]"
                 />
             </div>
         )}
@@ -153,8 +168,8 @@ const Generator: React.FC = () => {
             <div className="text-center space-y-4 w-full">
                 <div className={`w-32 h-32 rounded-full flex items-center justify-center mx-auto mb-6 relative`}>
                     <div className={`absolute inset-0 rounded-full blur-xl opacity-20 ${mode !== 'standard' ? 'bg-pink-500' : 'bg-blue-500'}`}></div>
-                    <div className={`w-full h-full rounded-full border-4 flex items-center justify-center bg-slate-800 z-10 ${mode !== 'standard' ? 'border-pink-500' : 'border-blue-500'}`}>
-                         <span className="text-4xl">?</span>
+                    <div className={`w-full h-full rounded-full border-4 flex items-center justify-center bg-white dark:bg-slate-800 z-10 ${mode !== 'standard' ? 'border-pink-500' : 'border-blue-500'}`}>
+                         <span className="text-4xl text-slate-400">?</span>
                     </div>
                 </div>
 
@@ -174,8 +189,8 @@ const Generator: React.FC = () => {
         {animationPhase === 'revealed' && generatedPokemon && (
             <div className="w-full max-w-sm animate-[zoomIn_0.5s_ease-out]">
                 <div className="text-center mb-6">
-                    <h3 className="text-2xl font-bold text-white mb-1">Acquisition Successful!</h3>
-                    <p className="text-green-400 text-sm">New genetic data added to inventory.</p>
+                    <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-1">Acquisition Successful!</h3>
+                    <p className="text-green-500 dark:text-green-400 text-sm">New genetic data added to inventory.</p>
                 </div>
                 <PokemonCard pokemon={generatedPokemon} />
                 <div className="flex justify-center mt-6">

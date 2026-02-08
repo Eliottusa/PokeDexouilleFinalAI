@@ -9,7 +9,7 @@ import PokemonCard from '../components/PokemonCard';
 import { Sword, Trophy, Skull, Gauge, Zap } from 'lucide-react';
 
 const Battle: React.FC = () => {
-  const { user, inventory, updateTokens, updateStardust, addScore, playAudio, social, clearRivalBattle } = useGame();
+  const { user, inventory, updateTokens, updateStardust, gainXp, playAudio, social, clearRivalBattle } = useGame();
   
   // States
   const [phase, setPhase] = useState<'difficulty' | 'select' | 'combat' | 'result'>('difficulty');
@@ -166,7 +166,8 @@ const Battle: React.FC = () => {
     const mult = difficulty.rewardMult;
     await updateStardust(Math.floor(REWARDS.BATTLE_WIN_STARDUST * mult));
     await updateTokens(Math.floor(REWARDS.BATTLE_WIN_TOKENS * mult));
-    await addScore(Math.floor(REWARDS.BATTLE_WIN_XP * mult));
+    // Use gainXp for leveling
+    await gainXp(Math.floor(REWARDS.BATTLE_WIN_XP * mult));
   };
 
   const handleLoss = async () => {
@@ -194,8 +195,8 @@ const Battle: React.FC = () => {
       return (
         <div className="max-w-xl mx-auto space-y-8 animate-fade-in pb-20">
             <div className="text-center">
-                <h2 className="text-3xl font-bold text-white mb-2">Battle Simulation</h2>
-                <p className="text-slate-400">Choose your risk level.</p>
+                <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">Battle Simulation</h2>
+                <p className="text-slate-500 dark:text-slate-400">Choose your risk level.</p>
             </div>
 
             <div className="grid grid-cols-1 gap-4">
@@ -210,16 +211,16 @@ const Battle: React.FC = () => {
                         }`}
                     >
                         <div className="text-left">
-                            <h3 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+                            <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-1 flex items-center gap-2">
                                 {diff.id === 'hard' && <Skull size={20} className="text-red-400"/>}
                                 {diff.label}
                             </h3>
-                            <p className="text-sm text-slate-400">Enemy Stats: {Math.round(diff.multiplier * 100)}%</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Enemy Stats: {Math.round(diff.multiplier * 100)}%</p>
                         </div>
                         <div className="text-right">
-                             <div className="text-sm font-bold text-slate-300 uppercase">Rewards</div>
+                             <div className="text-sm font-bold text-slate-600 dark:text-slate-300 uppercase">Rewards</div>
                              <div className={`text-2xl font-bold ${
-                                 diff.id === 'hard' ? 'text-accent' : 'text-white'
+                                 diff.id === 'hard' ? 'text-accent' : 'text-slate-800 dark:text-white'
                              }`}>
                                  {diff.rewardMult}x
                              </div>
@@ -238,19 +239,19 @@ const Battle: React.FC = () => {
             <div className="flex items-center gap-4">
                 {!social.rivalBattle && <Button onClick={() => setPhase('difficulty')} variant="ghost" className="text-slate-400">Back</Button>}
                 <div>
-                     <h2 className="text-3xl font-bold text-white">Select Champion</h2>
-                     <p className="text-slate-400 text-sm">Mode: {difficulty.label} ({difficulty.rewardMult}x Rewards)</p>
+                     <h2 className="text-3xl font-bold text-slate-800 dark:text-white">Select Champion</h2>
+                     <p className="text-slate-500 dark:text-slate-400 text-sm">Mode: {difficulty.label} ({difficulty.rewardMult}x Rewards)</p>
                 </div>
             </div>
             
             {!enemyMon ? (
                 <div className="text-center py-10"><div className="animate-spin text-4xl">⚙️</div> Preparing opponent...</div>
             ) : (
-                <div className={`bg-slate-800 p-4 rounded-xl border ${social.rivalBattle ? 'border-red-500 bg-red-900/20' : 'border-red-900/50'} mb-6 flex items-center gap-4`}>
+                <div className={`bg-white dark:bg-slate-800 p-4 rounded-xl border ${social.rivalBattle ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-red-200 dark:border-red-900/50'} mb-6 flex items-center gap-4`}>
                     <div className="bg-red-500/10 p-2 rounded-full"><Sword className="text-red-500"/></div>
                     <div>
                         <p className="text-xs text-red-400 uppercase font-bold">{social.rivalBattle ? `RIVAL: ${social.rivalBattle.trainerName}` : 'Opponent Found'}</p>
-                        <h3 className="text-xl font-bold text-white">{enemyMon.name} (HP: {enemyMon.stats.hp})</h3>
+                        <h3 className="text-xl font-bold text-slate-800 dark:text-white">{enemyMon.name} (HP: {enemyMon.stats.hp})</h3>
                         <div className="flex gap-1 mt-1">
                              {enemyMon.types.map(t => <span key={t} className={`px-2 py-0.5 rounded text-[10px] uppercase text-white ${TYPE_COLORS[t] || 'bg-gray-500'}`}>{t}</span>)}
                         </div>
@@ -259,7 +260,7 @@ const Battle: React.FC = () => {
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {inventory.map(p => (
+                {inventory.filter(p => !p.isArchived).map(p => (
                     <div key={p.id} onClick={() => startBattle(p)} className="cursor-pointer transform hover:scale-105 transition-all">
                         <div className="pointer-events-none">
                             <PokemonCard pokemon={p} readonly />
@@ -275,23 +276,23 @@ const Battle: React.FC = () => {
   if (phase === 'result') {
     return (
         <div className="flex flex-col items-center justify-center h-[60vh] animate-zoom-in">
-             <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700 text-center max-w-md w-full">
+             <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-slate-200 dark:border-slate-700 text-center max-w-md w-full">
                 {battleResult === 'win' ? (
                     <>
                         <Trophy size={64} className="text-yellow-400 mx-auto mb-4" />
-                        <h2 className="text-3xl font-bold text-white mb-2">Victory!</h2>
-                        <p className="text-slate-400 mb-6">Your {playerMon?.name} defeated {enemyMon?.name}.</p>
+                        <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">Victory!</h2>
+                        <p className="text-slate-500 dark:text-slate-400 mb-6">Your {playerMon?.name} defeated {enemyMon?.name}.</p>
                         
                         <div className="grid grid-cols-3 gap-2 mb-8">
-                             <div className="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                             <div className="bg-slate-100 dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
                                 <span className="block text-xs text-slate-500">Stardust</span>
                                 <span className="text-xl font-bold text-purple-400">+{Math.floor(REWARDS.BATTLE_WIN_STARDUST * difficulty.rewardMult)}</span>
                              </div>
-                             <div className="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                             <div className="bg-slate-100 dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
                                 <span className="block text-xs text-slate-500">Tokens</span>
                                 <span className="text-xl font-bold text-accent">+{Math.floor(REWARDS.BATTLE_WIN_TOKENS * difficulty.rewardMult)}</span>
                              </div>
-                             <div className="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                             <div className="bg-slate-100 dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
                                 <span className="block text-xs text-slate-500">XP</span>
                                 <span className="text-xl font-bold text-secondary">+{Math.floor(REWARDS.BATTLE_WIN_XP * difficulty.rewardMult)}</span>
                              </div>
@@ -322,8 +323,8 @@ const Battle: React.FC = () => {
         {/* Battle Header */}
         <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-2">
-                 <div className="bg-slate-800 px-4 py-2 rounded-full border border-slate-700">
-                    <span className="text-slate-400 text-xs font-bold uppercase">Turn {turn}</span>
+                 <div className="bg-slate-200 dark:bg-slate-800 px-4 py-2 rounded-full border border-slate-300 dark:border-slate-700">
+                    <span className="text-slate-600 dark:text-slate-400 text-xs font-bold uppercase">Turn {turn}</span>
                 </div>
                 {(difficulty.id === 'hard' || social.rivalBattle) && <span className="text-red-500 text-xs font-bold border border-red-500 px-2 py-1 rounded">HIGH STAKES</span>}
             </div>
@@ -335,43 +336,43 @@ const Battle: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             
             {/* Player */}
-            <div className="order-2 md:order-1 bg-slate-800/50 p-6 rounded-2xl border border-slate-700 relative overflow-hidden">
+            <div className="order-2 md:order-1 bg-white dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 relative overflow-hidden shadow-sm">
                 <div className="relative z-10 flex flex-col items-center">
                     <img src={playerMon?.sprite} className="w-32 h-32 object-contain drop-shadow-2xl animate-bounce-slow" />
-                    <h3 className="text-xl font-bold text-white mt-4">{playerMon?.name}</h3>
+                    <h3 className="text-xl font-bold text-slate-800 dark:text-white mt-4">{playerMon?.name}</h3>
                     
                     {/* HP Bar */}
-                    <div className="w-full bg-slate-900 h-4 rounded-full mt-2 overflow-hidden border border-slate-600">
+                    <div className="w-full bg-slate-200 dark:bg-slate-900 h-4 rounded-full mt-2 overflow-hidden border border-slate-300 dark:border-slate-600">
                         <div 
                             className={`h-full transition-all duration-500 ${playerHp < playerMon!.stats.hp * 0.3 ? 'bg-red-500' : 'bg-green-500'}`} 
                             style={{ width: `${(playerHp / playerMon!.stats.hp) * 100}%` }}
                         ></div>
                     </div>
-                    <span className="text-xs text-slate-400 mt-1">{playerHp} / {playerMon!.stats.hp} HP</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">{playerHp} / {playerMon!.stats.hp} HP</span>
                 </div>
             </div>
 
             {/* Enemy */}
-            <div className="order-1 md:order-2 bg-slate-800/50 p-6 rounded-2xl border border-slate-700 relative overflow-hidden">
+            <div className="order-1 md:order-2 bg-white dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 relative overflow-hidden shadow-sm">
                 <div className="relative z-10 flex flex-col items-center">
                     <img src={enemyMon?.sprite} className="w-32 h-32 object-contain drop-shadow-2xl" />
-                    <h3 className="text-xl font-bold text-white mt-4">{enemyMon?.name}</h3>
+                    <h3 className="text-xl font-bold text-slate-800 dark:text-white mt-4">{enemyMon?.name}</h3>
                     <p className="text-xs text-red-400 font-bold uppercase tracking-wide">{social.rivalBattle ? `Rival ${social.rivalBattle.trainerName}` : 'Wild Pokémon'}</p>
                     
                     {/* HP Bar */}
-                    <div className="w-full bg-slate-900 h-4 rounded-full mt-2 overflow-hidden border border-slate-600">
+                    <div className="w-full bg-slate-200 dark:bg-slate-900 h-4 rounded-full mt-2 overflow-hidden border border-slate-300 dark:border-slate-600">
                          <div 
                             className={`h-full transition-all duration-500 ${enemyHp < enemyMon!.stats.hp * 0.3 ? 'bg-red-500' : 'bg-green-500'}`} 
                             style={{ width: `${(enemyHp / enemyMon!.stats.hp) * 100}%` }}
                         ></div>
                     </div>
-                    <span className="text-xs text-slate-400 mt-1">{enemyHp} / {enemyMon!.stats.hp} HP</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">{enemyHp} / {enemyMon!.stats.hp} HP</span>
                 </div>
             </div>
         </div>
 
         {/* Controls */}
-        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 mb-6">
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 shadow-sm">
             {isPlayerTurn ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <Button onClick={() => executeTurn('attack')} className="h-14 flex flex-col items-center justify-center">
@@ -399,9 +400,9 @@ const Battle: React.FC = () => {
         </div>
 
         {/* Log */}
-        <div className="bg-slate-900 p-4 rounded-xl h-40 overflow-y-auto border border-slate-800 space-y-2">
+        <div className="bg-slate-100 dark:bg-slate-900 p-4 rounded-xl h-40 overflow-y-auto border border-slate-200 dark:border-slate-800 space-y-2">
             {combatLog.map((log, i) => (
-                <div key={i} className={`text-sm ${log.isPlayer ? 'text-blue-300' : 'text-red-300'}`}>
+                <div key={i} className={`text-sm ${log.isPlayer ? 'text-blue-600 dark:text-blue-300' : 'text-red-600 dark:text-red-300'}`}>
                     <span className="opacity-50 text-xs mr-2">[{new Date().toLocaleTimeString()}]</span>
                     {log.message}
                 </div>

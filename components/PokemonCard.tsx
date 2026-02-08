@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pokemon, Rarity } from '../types';
 import { TYPE_COLORS, REWARDS } from '../constants';
-import { Zap, Shield, Heart, Activity, Cpu } from 'lucide-react';
+import { Zap, Shield, Heart, Activity, Cpu, Star, Archive, RotateCcw } from 'lucide-react';
 import Button from './Button';
 import { useGame } from '../context/GameContext';
 
@@ -22,9 +22,9 @@ const StatBar: React.FC<{ label: string; value: number; color: string; icon: Rea
             <div className="flex-1">
                 <div className="flex justify-between mb-0.5">
                     <span className="text-slate-400 font-bold text-[10px] uppercase">{label}</span>
-                    <span className="text-white font-mono">{value}</span>
+                    <span className="text-slate-800 dark:text-white font-mono">{value}</span>
                 </div>
-                <div className="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
                     <div 
                         className={`h-full ${color}`} 
                         style={{ width: `${percentage}%` }}
@@ -36,7 +36,7 @@ const StatBar: React.FC<{ label: string; value: number; color: string; icon: Rea
 };
 
 const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon, readonly = false }) => {
-  const { updateTokens, removePokemon } = useGame();
+  const { updateTokens, removePokemon, toggleArchive } = useGame();
 
   const handleSell = async () => {
     let reward = REWARDS.SELL_COMMON;
@@ -52,7 +52,7 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon, readonly = false }) 
   };
 
   const rarityColor = {
-    [Rarity.COMMON]: 'border-slate-600',
+    [Rarity.COMMON]: 'border-slate-300 dark:border-slate-600',
     [Rarity.RARE]: 'border-blue-400 shadow-[0_0_15px_rgba(96,165,250,0.3)]',
     [Rarity.EPIC]: 'border-purple-400 shadow-[0_0_15px_rgba(192,132,252,0.4)]',
     [Rarity.LEGENDARY]: 'border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.5)]',
@@ -68,14 +68,19 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon, readonly = false }) 
   }[pokemon.rarity];
 
   return (
-    <div className={`bg-slate-800 rounded-xl overflow-hidden border-2 ${rarityColor} transition-transform hover:-translate-y-1 duration-300 flex flex-col h-full`}>
-      <div className="relative bg-slate-900 p-4 flex justify-center items-center h-40 group">
+    <div className={`bg-white dark:bg-slate-800 rounded-xl overflow-hidden border-2 ${pokemon.isLegacy ? 'border-yellow-400 ring-2 ring-yellow-400/50' : rarityColor} transition-transform hover:-translate-y-1 duration-300 flex flex-col h-full shadow-sm`}>
+      <div className="relative bg-slate-100 dark:bg-slate-900 p-4 flex justify-center items-center h-40 group">
+         {pokemon.isLegacy && (
+            <div className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 z-10 shadow-lg">
+                <Star size={10} fill="currentColor" /> LEGACY
+            </div>
+         )}
          {pokemon.isAiGenerated && (
-            <div className="absolute top-2 left-2 bg-pink-600 text-xs px-2 py-1 rounded text-white flex items-center gap-1 z-10">
+            <div className={`absolute ${pokemon.isLegacy ? 'top-8' : 'top-2'} left-2 bg-pink-600 text-xs px-2 py-1 rounded text-white flex items-center gap-1 z-10`}>
                 <Cpu size={12} /> AI
             </div>
          )}
-         <div className="absolute top-2 right-2 text-xs font-bold uppercase tracking-wider px-2 py-1 bg-slate-800 rounded border border-slate-700 z-10">
+         <div className="absolute top-2 right-2 text-xs font-bold uppercase tracking-wider px-2 py-1 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 z-10">
             <span className={rarityText}>{pokemon.rarity}</span>
          </div>
          
@@ -89,8 +94,8 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon, readonly = false }) 
 
       <div className="p-3 flex-1 flex flex-col">
         <div className="flex justify-between items-center mb-1">
-            <h3 className="text-lg font-bold text-white capitalize truncate">{pokemon.name}</h3>
-            <span className="text-slate-500 text-xs">#{pokemon.apiId || 'AI'}</span>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-white capitalize truncate">{pokemon.name}</h3>
+            <span className="text-slate-400 text-xs">#{pokemon.apiId || 'AI'}</span>
         </div>
 
         <div className="flex gap-1 mb-3 flex-wrap">
@@ -102,12 +107,12 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon, readonly = false }) 
         </div>
 
         {pokemon.description && (
-            <p className="text-[10px] text-slate-400 italic mb-3 line-clamp-2 min-h-[2rem]">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 italic mb-3 line-clamp-2 min-h-[2rem]">
                 "{pokemon.description}"
             </p>
         )}
 
-        <div className="space-y-1 mb-3 bg-slate-900/50 p-2 rounded-lg border border-slate-700/50">
+        <div className="space-y-1 mb-3 bg-slate-50 dark:bg-slate-900/50 p-2 rounded-lg border border-slate-200 dark:border-slate-700/50">
             <StatBar label="HP" value={pokemon.stats.hp} color="bg-red-400" icon={Heart} />
             <StatBar label="ATK" value={pokemon.stats.attack} color="bg-yellow-400" icon={Zap} />
             <StatBar label="DEF" value={pokemon.stats.defense} color="bg-blue-400" icon={Shield} />
@@ -115,9 +120,21 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon, readonly = false }) 
         </div>
 
         {!readonly && (
-            <div className="mt-auto pt-2">
-                <Button variant="ghost" onClick={handleSell} className="w-full text-xs py-1 h-7 border border-slate-700 hover:border-red-500 hover:bg-red-500/10 hover:text-red-500 flex items-center justify-center">
-                    Release (+Tokens)
+            <div className="mt-auto pt-2 grid grid-cols-2 gap-2">
+                 <Button 
+                    variant="ghost" 
+                    onClick={() => toggleArchive(pokemon.id)} 
+                    className="w-full text-xs py-1 h-7 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 flex items-center justify-center"
+                    title={pokemon.isArchived ? "Unarchive" : "Archive"}
+                >
+                    {pokemon.isArchived ? <RotateCcw size={14}/> : <Archive size={14}/>}
+                </Button>
+                <Button 
+                    variant="ghost" 
+                    onClick={handleSell} 
+                    className="w-full text-xs py-1 h-7 border border-slate-300 dark:border-slate-700 hover:border-red-500 hover:bg-red-500/10 hover:text-red-500 flex items-center justify-center"
+                >
+                    Release
                 </Button>
             </div>
         )}

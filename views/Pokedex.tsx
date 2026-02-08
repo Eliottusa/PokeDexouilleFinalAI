@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import PokemonCard from '../components/PokemonCard';
 import Button from '../components/Button';
-import { Search, Filter, BarChart2, PieChart, ArrowUpDown, Dna } from 'lucide-react';
+import { Search, Filter, BarChart2, PieChart, ArrowUpDown, Dna, Archive } from 'lucide-react';
 import { Rarity } from '../types';
 import { GENERATIONS, TOTAL_POKEMON_COUNT } from '../constants';
 
@@ -14,12 +14,13 @@ const Pokedex: React.FC = () => {
   const [sortMethod, setSortMethod] = useState<'date' | 'name' | 'id' | 'power'>('date');
   const [showStats, setShowStats] = useState(false);
   const [evolveMode, setEvolveMode] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
   const [processingEvolution, setProcessingEvolution] = useState<string | null>(null);
 
-  // Group by API ID to find duplicates
+  // Group by API ID to find duplicates (Exclude archived)
   const evolutionCandidates = useMemo(() => {
       const counts: Record<number, number> = {};
-      inventory.forEach(p => {
+      inventory.filter(p => !p.isArchived).forEach(p => {
           if (p.apiId > 0) {
               counts[p.apiId] = (counts[p.apiId] || 0) + 1;
           }
@@ -29,6 +30,10 @@ const Pokedex: React.FC = () => {
 
   const filteredInventory = useMemo(() => {
     return inventory.filter(p => {
+      // Archive Filter
+      if (showArchive && !p.isArchived) return false;
+      if (!showArchive && p.isArchived) return false;
+
       const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.types.some(t => t.includes(searchTerm.toLowerCase()));
       const matchesRarity = rarityFilter === 'all' || p.rarity === rarityFilter;
       
@@ -43,15 +48,13 @@ const Pokedex: React.FC = () => {
       }
 
       // If Evolve Mode is on, only show candidates
-      if (evolveMode) {
+      if (evolveMode && !showArchive) {
           if (p.apiId === 0 || !evolutionCandidates.has(p.apiId)) return false;
-          // Show only one of each candidate type to avoid clutter? No, grid needs to select.
-          // For now, show all, but we will add visual cues.
       }
 
       return matchesSearch && matchesRarity && matchesGen;
     });
-  }, [inventory, searchTerm, rarityFilter, genFilter, evolveMode, evolutionCandidates]);
+  }, [inventory, searchTerm, rarityFilter, genFilter, evolveMode, evolutionCandidates, showArchive]);
 
   // Statistics Calculation
   const stats = useMemo(() => {
@@ -107,20 +110,29 @@ const Pokedex: React.FC = () => {
       {/* Header & Stats Toggle */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-            <h2 className="text-3xl font-bold text-white">Pokédex</h2>
-            <p className="text-slate-400">Manage your collection.</p>
+            <h2 className="text-3xl font-bold text-slate-800 dark:text-white">{showArchive ? 'Vault' : 'Pokédex'}</h2>
+            <p className="text-slate-500 dark:text-slate-400">{showArchive ? 'Archived Pokémon storage.' : 'Manage your active collection.'}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
             <button 
-            onClick={() => setEvolveMode(!evolveMode)} 
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors ${evolveMode ? 'bg-secondary/20 border-secondary text-secondary' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}`}
+                onClick={() => { setShowArchive(!showArchive); setEvolveMode(false); }} 
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors ${showArchive ? 'bg-indigo-500/20 border-indigo-500 text-indigo-500' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
             >
-            <Dna size={16} />
-            <span className="text-sm font-medium">Evolution</span>
+                <Archive size={16} />
+                <span className="text-sm font-medium">{showArchive ? 'Back to Dex' : 'Vault'}</span>
             </button>
+            {!showArchive && (
+                <button 
+                onClick={() => setEvolveMode(!evolveMode)} 
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors ${evolveMode ? 'bg-secondary/20 border-secondary text-secondary' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                >
+                <Dna size={16} />
+                <span className="text-sm font-medium">Evolution</span>
+                </button>
+            )}
             <button 
             onClick={() => setShowStats(!showStats)} 
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors ${showStats ? 'bg-primary/20 border-primary text-primary' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}`}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors ${showStats ? 'bg-primary/20 border-primary text-primary' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
             >
             <BarChart2 size={16} />
             <span className="text-sm font-medium">Analytics</span>
@@ -128,7 +140,7 @@ const Pokedex: React.FC = () => {
         </div>
       </div>
 
-      {evolveMode && (
+      {evolveMode && !showArchive && (
           <div className="bg-secondary/10 border border-secondary/50 p-4 rounded-xl text-secondary text-sm flex items-center gap-3">
               <Dna size={20} />
               <div>
@@ -140,17 +152,17 @@ const Pokedex: React.FC = () => {
 
       {/* Stats Panel */}
       {showStats && (
-        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 animate-slide-in">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 animate-slide-in shadow-lg">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-2">
                 <PieChart size={16} /> Global Completion
               </h3>
               <div className="flex items-end gap-2 mb-1">
-                <span className="text-3xl font-bold text-white">{stats.uniqueCount}</span>
+                <span className="text-3xl font-bold text-slate-800 dark:text-white">{stats.uniqueCount}</span>
                 <span className="text-sm text-slate-500 mb-1.5">/ {TOTAL_POKEMON_COUNT} Unique Species</span>
               </div>
-              <div className="w-full bg-slate-900 h-3 rounded-full overflow-hidden border border-slate-700">
+              <div className="w-full bg-slate-200 dark:bg-slate-900 h-3 rounded-full overflow-hidden border border-slate-300 dark:border-slate-700">
                 <div 
                   className="bg-gradient-to-r from-primary to-secondary h-full transition-all duration-1000" 
                   style={{ width: `${stats.completionPercentage}%` }}
@@ -158,7 +170,7 @@ const Pokedex: React.FC = () => {
               </div>
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wide mb-2">Rarity Distribution</h3>
+              <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Rarity Distribution</h3>
               <div className="space-y-2">
                 {[Rarity.COMMON, Rarity.RARE, Rarity.EPIC, Rarity.LEGENDARY, Rarity.MYTHICAL].map((rarity) => {
                    const count = stats.rarityCounts[rarity];
@@ -174,11 +186,11 @@ const Pokedex: React.FC = () => {
 
                    return (
                      <div key={rarity} className="flex items-center gap-3 text-xs">
-                        <span className={`w-20 text-right ${count > 0 ? 'text-white' : 'text-slate-600'}`}>{rarity}</span>
-                        <div className="flex-1 bg-slate-900 h-2 rounded-full overflow-hidden">
+                        <span className={`w-20 text-right ${count > 0 ? 'text-slate-800 dark:text-white' : 'text-slate-400 dark:text-slate-600'}`}>{rarity}</span>
+                        <div className="flex-1 bg-slate-200 dark:bg-slate-900 h-2 rounded-full overflow-hidden">
                            <div className={`h-full ${colorClass}`} style={{ width: `${percent}%` }}></div>
                         </div>
-                        <span className="w-8 font-mono text-slate-400">{count}</span>
+                        <span className="w-8 font-mono text-slate-500">{count}</span>
                      </div>
                    );
                 })}
@@ -189,7 +201,7 @@ const Pokedex: React.FC = () => {
       )}
 
       {/* Filters Toolbar */}
-      <div className="flex flex-col md:flex-row gap-3 bg-slate-800 p-3 rounded-xl border border-slate-700 sticky top-0 z-10 shadow-xl">
+      <div className="flex flex-col md:flex-row gap-3 bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 sticky top-0 z-10 shadow-md">
           <div className="relative flex-1">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input 
@@ -197,7 +209,7 @@ const Pokedex: React.FC = () => {
                   placeholder="Search..." 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:ring-2 focus:ring-primary focus:outline-none"
+                  className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg pl-9 pr-4 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none"
               />
           </div>
 
@@ -207,7 +219,7 @@ const Pokedex: React.FC = () => {
                 <select 
                     value={sortMethod}
                     onChange={(e) => setSortMethod(e.target.value as any)}
-                    className="w-full appearance-none bg-slate-900 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:ring-2 focus:ring-primary focus:outline-none cursor-pointer"
+                    className="w-full appearance-none bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none cursor-pointer"
                 >
                     <option value="date">Date (Newest)</option>
                     <option value="name">Name (A-Z)</option>
@@ -222,7 +234,7 @@ const Pokedex: React.FC = () => {
                 <select 
                     value={rarityFilter}
                     onChange={(e) => setRarityFilter(e.target.value)}
-                    className="w-full appearance-none bg-slate-900 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:ring-2 focus:ring-primary focus:outline-none cursor-pointer"
+                    className="w-full appearance-none bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none cursor-pointer"
                 >
                     <option value="all">All Rarities</option>
                     <option value={Rarity.COMMON}>Common</option>
@@ -242,7 +254,7 @@ const Pokedex: React.FC = () => {
                       const val = e.target.value;
                       setGenFilter(val === 'all' || val === 'ai' ? val : Number(val));
                     }}
-                    className="w-full appearance-none bg-slate-900 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:ring-2 focus:ring-primary focus:outline-none cursor-pointer"
+                    className="w-full appearance-none bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none cursor-pointer"
                 >
                     <option value="all">All Gens</option>
                     {GENERATIONS.map(g => (
@@ -257,12 +269,12 @@ const Pokedex: React.FC = () => {
 
       {/* Grid */}
       {sortedInventory.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-slate-800 rounded-2xl bg-slate-900/50">
+        <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-900/50">
             <p className="text-slate-500 text-lg">No Pokémon found.</p>
             {searchTerm || rarityFilter !== 'all' || genFilter !== 'all' ? (
                 <button onClick={() => {setSearchTerm(''); setRarityFilter('all'); setGenFilter('all');}} className="text-primary hover:underline mt-2">Clear Filters</button>
             ) : (
-                <p className="text-slate-600 text-sm mt-2">Go to the Lab to summon some!</p>
+                <p className="text-slate-500 text-sm mt-2">Go to the Lab to summon some!</p>
             )}
         </div>
       ) : (
@@ -272,7 +284,7 @@ const Pokedex: React.FC = () => {
                 return (
                     <div key={pokemon.id} className="relative group">
                         <PokemonCard pokemon={pokemon} />
-                        {evolveMode && canEvolve && (
+                        {evolveMode && !showArchive && canEvolve && (
                             <div className="absolute inset-0 bg-slate-900/80 rounded-xl flex items-center justify-center z-20 backdrop-blur-sm">
                                 <Button 
                                     onClick={() => handleEvolve(pokemon)}
@@ -284,7 +296,7 @@ const Pokedex: React.FC = () => {
                                 </Button>
                             </div>
                         )}
-                        {evolveMode && !canEvolve && (
+                        {evolveMode && !showArchive && !canEvolve && (
                             <div className="absolute inset-0 bg-slate-950/80 rounded-xl z-20"></div>
                         )}
                     </div>

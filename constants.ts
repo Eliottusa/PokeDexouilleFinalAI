@@ -1,4 +1,4 @@
-import { Rarity } from './types';
+import { Rarity, GameEvent } from './types';
 
 export const COSTS = {
   SUMMON_STANDARD: 10,
@@ -17,7 +17,7 @@ export const REWARDS = {
   SCORE_NEW: 10,
   SCORE_SELL: 3,
   BATTLE_WIN_STARDUST: 15,
-  BATTLE_WIN_XP: 50,
+  BATTLE_WIN_XP: 100,
   BATTLE_WIN_TOKENS: 20,
   BATTLE_LOSS_TOKENS: 10,
 };
@@ -29,7 +29,11 @@ export const INITIAL_USER_STATE = {
   xp: 0,
   level: 1,
   title: 'Rookie',
+  prestige: 0,
 };
+
+export const LEVEL_CAP = 50;
+export const XP_PER_LEVEL = 500; // Linear leveling for simplicity
 
 export const DB_NAME = 'pokegen-dex-db';
 export const DB_VERSION = 1;
@@ -65,9 +69,6 @@ export const TYPE_COLORS: Record<string, string> = {
   unknown: 'bg-gray-500'
 };
 
-// Simple Type Chart: Attacker Type -> [Strong Against]
-// If defender type is in array, damage x2.
-// Weakness is inverse logic for simplicity in this MVP.
 export const TYPE_CHART: Record<string, string[]> = {
   normal: [],
   fire: ['grass', 'ice', 'bug', 'steel'],
@@ -117,4 +118,19 @@ export const BATTLE_DIFFICULTIES = {
   EASY: { id: 'easy', label: 'Training', multiplier: 0.8, rewardMult: 0.5 },
   NORMAL: { id: 'normal', label: 'Standard', multiplier: 1.0, rewardMult: 1.0 },
   HARD: { id: 'hard', label: 'High Stakes', multiplier: 1.3, rewardMult: 2.0 },
+};
+
+export const SEASONAL_EVENTS: Record<string, GameEvent[]> = {
+  'Spring': [
+    { id: 'bloom', name: 'Spring Bloom', description: 'Nature thrives! XP gain increased by 50%.', effect: 'xp_boost', multiplier: 1.5 },
+  ],
+  'Summer': [
+    { id: 'heatwave', name: 'Solar Flare', description: 'Intense heat! Token gain increased by 50%.', effect: 'token_boost', multiplier: 1.5 },
+  ],
+  'Autumn': [
+    { id: 'harvest', name: 'Golden Harvest', description: 'Reap the rewards! Stardust gain increased by 50%.', effect: 'stardust_boost', multiplier: 1.5 },
+  ],
+  'Winter': [
+    { id: 'blizzard', name: 'Deep Freeze', description: 'Hardened resolve! Battle rewards are boosted.', effect: 'xp_boost', multiplier: 1.2 },
+  ]
 };

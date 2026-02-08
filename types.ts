@@ -25,6 +25,8 @@ export interface Pokemon {
   isAiGenerated: boolean;
   acquiredAt: number;
   description?: string;
+  isLegacy?: boolean;
+  isArchived?: boolean;
 }
 
 export interface UserProfile {
@@ -35,9 +37,18 @@ export interface UserProfile {
   level: number;
   joinedAt: number;
   title: string;
+  prestige: number;
 }
 
 export type ViewState = 'dashboard' | 'generator' | 'pokedex' | 'battle' | 'marketplace' | 'social';
+
+export interface GameEvent {
+  id: string;
+  name: string;
+  description: string;
+  effect: 'xp_boost' | 'token_boost' | 'stardust_boost' | 'shiny_boost';
+  multiplier: number;
+}
 
 export interface GameState {
   user: UserProfile;
@@ -47,6 +58,8 @@ export interface GameState {
   marketListings: MarketListing[];
   season: Season;
   social: SocialState;
+  activeEvent?: GameEvent;
+  theme: 'dark' | 'light';
 }
 
 export interface SocialState {
@@ -94,6 +107,7 @@ export interface GameContextType extends GameState {
   updateTokens: (amount: number) => Promise<void>;
   updateStardust: (amount: number) => Promise<void>;
   addScore: (amount: number) => Promise<void>;
+  gainXp: (amount: number) => Promise<void>;
   refreshData: () => Promise<void>;
   refreshMarket: () => void;
   buyMarketItem: (listingId: string) => Promise<void>;
@@ -102,6 +116,10 @@ export interface GameContextType extends GameState {
   contributeToGuild: (amount: number) => Promise<void>;
   startRivalBattle: (trainerName: string) => Promise<void>;
   clearRivalBattle: () => void;
+  // Progression
+  prestigeUser: () => Promise<void>;
+  toggleArchive: (id: string) => Promise<void>;
+  toggleTheme: () => void;
 }
 
 export interface TurnLog {
