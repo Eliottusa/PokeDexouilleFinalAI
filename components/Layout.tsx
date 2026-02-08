@@ -47,8 +47,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           PokéGen Dex
         </h1>
         <div className="flex items-center gap-2">
-            <button onClick={toggleTheme} className="p-2 text-slate-500">
-                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            <button 
+                onClick={toggleTheme} 
+                className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+            >
+                {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
             <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700">
                 <div className="w-2 h-2 rounded-full bg-accent animate-pulse"></div>
@@ -61,7 +64,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <nav className="fixed bottom-0 w-full md:relative md:w-64 bg-white dark:bg-slate-900 md:border-r border-t md:border-t-0 border-slate-200 dark:border-slate-800 z-30 flex md:flex-col justify-around md:justify-start p-2 md:p-4 gap-1 md:gap-2 overflow-x-auto md:overflow-visible shadow-lg md:shadow-none">
         
         <div className="hidden md:flex flex-col items-center mb-8 mt-4">
-             <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-full mb-3 border border-slate-200 dark:border-slate-700 shadow-lg shadow-primary/20 cursor-pointer" onClick={toggleTheme} title="Toggle Theme">
+             <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-full mb-3 border border-slate-200 dark:border-slate-700 shadow-lg shadow-primary/20">
                 <Award size={32} className="text-primary" />
              </div>
              <h1 className="text-xl font-bold text-slate-800 dark:text-white">PokéGen Dex</h1>
@@ -98,7 +101,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto mb-16 md:mb-0 max-w-7xl mx-auto w-full">
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto mb-16 md:mb-0 max-w-7xl mx-auto w-full relative">
+        {/* Desktop Theme Toggle (Floating) */}
+        <button 
+            onClick={toggleTheme} 
+            className="hidden md:flex absolute top-6 right-6 z-50 p-3 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:scale-110 transition-transform"
+            title="Toggle Light/Dark Mode"
+        >
+            {theme === 'dark' ? <Sun size={24} /> : <Moon size={24} />}
+        </button>
+
         {/* Seasonal Banner */}
         <div className="mb-6 bg-white dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 pb-2 flex items-center gap-2 rounded-lg px-2">
             <SeasonIcon size={16} className={SeasonColor} />

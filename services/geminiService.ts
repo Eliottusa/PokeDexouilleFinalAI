@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Pokemon, Rarity } from '../types';
+import { PERSONALITIES } from '../constants';
 
 // Ensure API Key is available.
 const API_KEY = process.env.API_KEY || ''; 
@@ -80,6 +81,9 @@ export const generateAiPokemon = async (userPrompt?: string): Promise<Pokemon> =
       base64Image = 'https://picsum.photos/200/200'; 
     }
 
+    // Random Personality
+    const personality = PERSONALITIES[Math.floor(Math.random() * PERSONALITIES.length)];
+
     return {
       id: `ai-${Date.now()}`,
       apiId: 0,
@@ -90,7 +94,10 @@ export const generateAiPokemon = async (userPrompt?: string): Promise<Pokemon> =
       stats: metadata.stats,
       isAiGenerated: true,
       acquiredAt: Date.now(),
-      description: metadata.description
+      description: metadata.description,
+      status: 'none',
+      personality,
+      friendship: 0
     };
 
   } catch (error) {

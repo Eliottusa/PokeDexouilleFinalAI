@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pokemon, Rarity } from '../types';
-import { TYPE_COLORS, REWARDS } from '../constants';
-import { Zap, Shield, Heart, Activity, Cpu, Star, Archive, RotateCcw } from 'lucide-react';
+import { TYPE_COLORS, REWARDS, STATUS_COLORS } from '../constants';
+import { Zap, Shield, Heart, Activity, Cpu, Star, Archive, RotateCcw, Smile } from 'lucide-react';
 import Button from './Button';
 import { useGame } from '../context/GameContext';
 
@@ -87,9 +87,15 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon, readonly = false }) 
          <img 
             src={pokemon.sprite} 
             alt={pokemon.name} 
-            className="h-32 w-32 object-contain drop-shadow-xl group-hover:scale-110 transition-transform duration-300"
+            className={`h-32 w-32 object-contain drop-shadow-xl group-hover:scale-110 transition-transform duration-300 ${pokemon.status !== 'none' ? 'opacity-80 grayscale-[0.5]' : ''}`}
             loading="lazy"
          />
+         
+         {pokemon.status !== 'none' && (
+             <div className={`absolute bottom-2 right-2 text-xs font-bold uppercase ${STATUS_COLORS[pokemon.status]}`}>
+                 {pokemon.status}
+             </div>
+         )}
       </div>
 
       <div className="p-3 flex-1 flex flex-col">
@@ -111,6 +117,15 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon, readonly = false }) 
                 "{pokemon.description}"
             </p>
         )}
+
+        <div className="flex items-center gap-2 mb-2 text-[10px] text-slate-500 dark:text-slate-400">
+             <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
+                <Smile size={10} /> {pokemon.personality || 'Unknown'}
+             </div>
+             <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
+                <Heart size={10} className={pokemon.friendship > 50 ? 'text-pink-500' : 'text-slate-400'} /> {pokemon.friendship || 0}
+             </div>
+        </div>
 
         <div className="space-y-1 mb-3 bg-slate-50 dark:bg-slate-900/50 p-2 rounded-lg border border-slate-200 dark:border-slate-700/50">
             <StatBar label="HP" value={pokemon.stats.hp} color="bg-red-400" icon={Heart} />

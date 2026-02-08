@@ -6,6 +6,10 @@ export enum Rarity {
   MYTHICAL = 'Mythical'
 }
 
+export type StatusCondition = 'none' | 'burn' | 'poison' | 'paralysis' | 'sleep' | 'freeze';
+
+export type Personality = 'Brave' | 'Calm' | 'Jolly' | 'Adamant' | 'Timorous' | 'Bold' | 'Hasty';
+
 export interface PokemonStats {
   hp: number;
   maxHp?: number; // For battle state
@@ -27,6 +31,19 @@ export interface Pokemon {
   description?: string;
   isLegacy?: boolean;
   isArchived?: boolean;
+  status: StatusCondition;
+  personality: Personality;
+  friendship: number; // 0-255
+}
+
+export interface Item {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  effect: 'heal' | 'status_heal' | 'boost';
+  value: number; // HP amount or Specific status check
+  icon: string;
 }
 
 export interface UserProfile {
@@ -38,6 +55,7 @@ export interface UserProfile {
   joinedAt: number;
   title: string;
   prestige: number;
+  items: Record<string, number>; // itemId -> count
 }
 
 export type ViewState = 'dashboard' | 'generator' | 'pokedex' | 'battle' | 'marketplace' | 'social';
@@ -103,6 +121,7 @@ export interface RivalChallenge {
 export interface GameContextType extends GameState {
   setView: (view: ViewState) => void;
   addPokemon: (pokemon: Pokemon) => Promise<void>;
+  updatePokemon: (pokemon: Pokemon) => Promise<void>;
   removePokemon: (id: string) => Promise<void>;
   updateTokens: (amount: number) => Promise<void>;
   updateStardust: (amount: number) => Promise<void>;
@@ -120,6 +139,9 @@ export interface GameContextType extends GameState {
   prestigeUser: () => Promise<void>;
   toggleArchive: (id: string) => Promise<void>;
   toggleTheme: () => void;
+  // Items
+  buyItem: (itemId: string, count?: number) => Promise<void>;
+  useItem: (itemId: string, pokemonId: string) => Promise<boolean>;
 }
 
 export interface TurnLog {

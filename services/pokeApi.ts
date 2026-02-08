@@ -1,5 +1,5 @@
-import { Rarity, Pokemon } from '../types';
-import { RARITY_WEIGHTS } from '../constants';
+import { Rarity, Pokemon, Personality } from '../types';
+import { RARITY_WEIGHTS, PERSONALITIES } from '../constants';
 
 const API_BASE = 'https://pokeapi.co/api/v2';
 
@@ -65,6 +65,9 @@ const processPokemonData = async (data: any, rarityOverride?: Rarity): Promise<P
       speed: Math.floor(stats.speed * multiplier),
     };
 
+    // Random Personality
+    const personality = PERSONALITIES[Math.floor(Math.random() * PERSONALITIES.length)];
+
     return {
       id: `${data.id}-${Date.now()}`,
       apiId: data.id,
@@ -75,6 +78,9 @@ const processPokemonData = async (data: any, rarityOverride?: Rarity): Promise<P
       stats: finalStats,
       isAiGenerated: false,
       acquiredAt: Date.now(),
+      status: 'none',
+      personality,
+      friendship: 0
     };
 };
 

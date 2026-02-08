@@ -1,4 +1,4 @@
-import { Rarity, GameEvent } from './types';
+import { Rarity, GameEvent, Item, Personality } from './types';
 
 export const COSTS = {
   SUMMON_STANDARD: 10,
@@ -30,6 +30,7 @@ export const INITIAL_USER_STATE = {
   level: 1,
   title: 'Rookie',
   prestige: 0,
+  items: { 'potion': 3 } // Start with 3 potions
 };
 
 export const LEVEL_CAP = 50;
@@ -46,6 +47,15 @@ export const RARITY_WEIGHTS = [
   { rarity: Rarity.EPIC, weight: 10 },
   { rarity: Rarity.LEGENDARY, weight: 5 },
 ];
+
+export const PERSONALITIES: Personality[] = ['Brave', 'Calm', 'Jolly', 'Adamant', 'Timorous', 'Bold', 'Hasty'];
+
+export const ITEMS: Record<string, Item> = {
+  'potion': { id: 'potion', name: 'Potion', description: 'Restores 20 HP.', price: 50, effect: 'heal', value: 20, icon: '🧪' },
+  'super_potion': { id: 'super_potion', name: 'Super Potion', description: 'Restores 50 HP.', price: 150, effect: 'heal', value: 50, icon: '🍷' },
+  'hyper_potion': { id: 'hyper_potion', name: 'Hyper Potion', description: 'Restores 200 HP.', price: 400, effect: 'heal', value: 200, icon: '✨' },
+  'full_heal': { id: 'full_heal', name: 'Full Heal', description: 'Cures all status conditions.', price: 100, effect: 'status_heal', value: 0, icon: '💊' },
+};
 
 export const TYPE_COLORS: Record<string, string> = {
   normal: 'bg-stone-400',
@@ -67,6 +77,15 @@ export const TYPE_COLORS: Record<string, string> = {
   steel: 'bg-slate-400',
   fairy: 'bg-pink-300 text-black',
   unknown: 'bg-gray-500'
+};
+
+export const STATUS_COLORS: Record<string, string> = {
+  burn: 'text-red-500',
+  poison: 'text-purple-500',
+  paralysis: 'text-yellow-500',
+  sleep: 'text-blue-300',
+  freeze: 'text-cyan-300',
+  none: 'hidden'
 };
 
 export const TYPE_CHART: Record<string, string[]> = {

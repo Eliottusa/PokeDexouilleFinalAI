@@ -76,3 +76,21 @@
 - [x] End-of-season summaries / Active Event Banner
 - [x] Narrative events tied to seasons (Bonus effects)
 - [x] Add a light/dark mode (Theme Toggle)
+
+### Battle & Game Mechanics (Done)
+
+- [x] Implement turn-based battle system with stats and moves
+- [x] Add battle status effects (poison, burn, sleep) with logs
+- [x] Implement critical hits, accuracy, and speed mechanics
+- [x] Implement smart AI for enemy moves (based on Pokémon type and stats)
+- [x] Add battle difficulty tiers (casual, competitive, chaotic)
+- [x] Add rewards system for winning battles (XP, tokens, items)
+- [x] Implement inventory system for consumables (potions, boosts)
+- [x] Add Pokémon personality traits (Visual Only for now)
+- [x] Implement Pokémon affinity/bond system (Endure mechanic)
+- [x] Add battle animations (shake, hit, SVG effects)
+- [x] Add a Seperate and easy to see button for the light and dark modes.
+
+### Future
+- [ ] Implement Pokémon personality traits that influence battle AI (Currently Visual)
+- [ ] Add SVG Battle Animations
