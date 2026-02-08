@@ -1,0 +1,5 @@
+{
+  "name": "PokéGen Dex",
+  "description": "An offline-first Pokémon collection RPG with AI generation, battling, and economy.",
+  "requestFramePermissions": []
+}
