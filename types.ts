@@ -10,6 +10,15 @@ export type StatusCondition = 'none' | 'burn' | 'poison' | 'paralysis' | 'sleep'
 
 export type Personality = 'Brave' | 'Calm' | 'Jolly' | 'Adamant' | 'Timorous' | 'Bold' | 'Hasty';
 
+export type Weather = 'none' | 'sun' | 'rain' | 'sandstorm';
+
+export interface BattleBuffs {
+  attack: number;
+  defense: number;
+  speed: number;
+  accuracy: number;
+}
+
 export interface PokemonStats {
   hp: number;
   maxHp?: number; // For battle state
@@ -49,7 +58,8 @@ export interface Item {
   description: string;
   price: number;
   effect: 'heal' | 'status_heal' | 'boost';
-  value: number; // HP amount or Specific status check
+  value: number; // HP amount or Specific status check, or stat boost multiplier index (1 = +1 stage)
+  stat?: 'attack' | 'defense' | 'speed';
   icon: string;
 }
 

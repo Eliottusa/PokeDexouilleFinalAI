@@ -60,6 +60,9 @@ export const ITEMS: Record<string, Item> = {
   'super_potion': { id: 'super_potion', name: 'Super Potion', description: 'Restores 50 HP.', price: 150, effect: 'heal', value: 50, icon: '🍷' },
   'hyper_potion': { id: 'hyper_potion', name: 'Hyper Potion', description: 'Restores 200 HP.', price: 400, effect: 'heal', value: 200, icon: '✨' },
   'full_heal': { id: 'full_heal', name: 'Full Heal', description: 'Cures all status conditions.', price: 100, effect: 'status_heal', value: 0, icon: '💊' },
+  'x_attack': { id: 'x_attack', name: 'X Attack', description: 'Boosts Attack stage by 1 during battle.', price: 200, effect: 'boost', value: 1, stat: 'attack', icon: '⚔️' },
+  'x_defense': { id: 'x_defense', name: 'X Defense', description: 'Boosts Defense stage by 1 during battle.', price: 200, effect: 'boost', value: 1, stat: 'defense', icon: '🛡️' },
+  'x_speed': { id: 'x_speed', name: 'X Speed', description: 'Boosts Speed stage by 1 during battle.', price: 200, effect: 'boost', value: 1, stat: 'speed', icon: '👟' },
 };
 
 export const RELICS: Record<string, Relic> = {
@@ -150,6 +153,7 @@ export const BATTLE_DIFFICULTIES = {
   EASY: { id: 'easy', label: 'Training', multiplier: 0.8, rewardMult: 0.5 },
   NORMAL: { id: 'normal', label: 'Standard', multiplier: 1.0, rewardMult: 1.0 },
   HARD: { id: 'hard', label: 'High Stakes', multiplier: 1.3, rewardMult: 2.0 },
+  DOUBLE: { id: 'double', label: 'Double Battle', multiplier: 1.1, rewardMult: 1.5 },
 };
 
 export const SEASONAL_EVENTS: Record<string, GameEvent[]> = {

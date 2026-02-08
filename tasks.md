@@ -112,3 +112,24 @@
 - [x] Show historical capture/release log per Pokémon
 - [x] Add achievement badges visible on Pokémon cards
 - [x] Modify the ReadME so that it explains the whole use case and presents the app.
+
+#### Battle & AI (Done)
+- [x] Introduce multi-enemy battles (2v2 simulated)
+- [x] Add temporary buffs/debuffs from items
+- [x] Implement weather effects influencing battles (rain, sun, sandstorm)
+- [x] Add AI trainers with variable difficulty and strategies
+- [x] Show predicted damage ranges before attack
+
+#### Long-term Progression & Events
+- [ ] Add seasonal leaderboard resets with rewards
+- [ ] Implement legacy Pokémon tracking across prestiges
+- [ ] Introduce narrative mini-events (story-driven challenges)
+- [ ] Add seasonal achievements / badges
+- [ ] Implement milestone rewards for number of Pokémon generated
+
+#### UI / UX Improvements
+- [ ] Add drag-and-drop for Pokémon card reordering
+- [ ] Implement compact vs expanded card views
+- [ ] Add tutorial overlay for new users
+- [ ] Add animated transitions for Pokedex sorting/filtering
+- [ ] Implement sound effects for marketplace transactions
