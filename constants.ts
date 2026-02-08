@@ -85,3 +85,17 @@ export const TYPE_CHART: Record<string, string[]> = {
   steel: ['ice', 'rock', 'fairy'],
   fairy: ['fighting', 'dragon', 'dark']
 };
+
+export const GENERATIONS = [
+  { id: 1, name: 'Gen I', min: 1, max: 151 },
+  { id: 2, name: 'Gen II', min: 152, max: 251 },
+  { id: 3, name: 'Gen III', min: 252, max: 386 },
+  { id: 4, name: 'Gen IV', min: 387, max: 493 },
+  { id: 5, name: 'Gen V', min: 494, max: 649 },
+  { id: 6, name: 'Gen VI', min: 650, max: 721 },
+  { id: 7, name: 'Gen VII', min: 722, max: 809 },
+  { id: 8, name: 'Gen VIII', min: 810, max: 905 },
+  { id: 9, name: 'Gen IX', min: 906, max: 1025 },
+];
+
+export const TOTAL_POKEMON_COUNT = 1025;

@@ -37,3 +37,17 @@
     - [x] Buy with Stardust/Tokens.
 - [x] **Seasonal Events**:
     - [x] Dynamic seasonal theme/bonus.
+
+## Advanced Pokedex Features (Done)
+- [x] Add generation-based filtering (Gen 1 → Gen 9)
+- [x] Add rarity heatmap in Pokédex view (Distribution Bars)
+- [x] Improve stat comparison between Pokémon (Visual Stat Bars)
+- [x] Add Pokédex completion percentage
+
+## Planned Tasks
+- [ ] Add sorting by ID/Name/Stat
+- [ ] Add evolution chains (consume duplicates to evolve)
+- [ ] Add simple sound effects (using web audio api)
+- [ ] Correct the fact that the Tokens reset when we use them
+- [ ] Change the number of starting tokens to 1000
+- [ ] Add reward tokens for winning fights and losing tokens for losing fights
