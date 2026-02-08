@@ -126,7 +126,7 @@
 - [ ] Introduce narrative mini-events (story-driven challenges)
 - [ ] Add seasonal achievements / badges
 - [ ] Implement milestone rewards for number of Pokémon generated
-
+ 
 #### UI / UX Improvements
 - [ ] Add drag-and-drop for Pokémon card reordering
 - [ ] Implement compact vs expanded card views
