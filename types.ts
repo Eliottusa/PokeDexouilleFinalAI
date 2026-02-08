@@ -34,6 +34,7 @@ export interface UserProfile {
   xp: number;
   level: number;
   joinedAt: number;
+  title: string;
 }
 
 export type ViewState = 'dashboard' | 'generator' | 'pokedex' | 'battle' | 'marketplace';

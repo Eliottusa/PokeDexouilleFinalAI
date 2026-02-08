@@ -3,16 +3,17 @@ import { useGame } from '../context/GameContext';
 import { Pokemon, TurnLog } from '../types';
 import { fetchRandomPokemon } from '../services/pokeApi';
 import { calculateDamage, getEnemyAction } from '../services/battleLogic';
-import { TYPE_COLORS, REWARDS } from '../constants';
+import { TYPE_COLORS, REWARDS, BATTLE_DIFFICULTIES } from '../constants';
 import Button from '../components/Button';
 import PokemonCard from '../components/PokemonCard';
-import { Sword, Shield, Zap, Skull, Trophy, RefreshCw } from 'lucide-react';
+import { Sword, Trophy, Skull, Gauge, Zap } from 'lucide-react';
 
 const Battle: React.FC = () => {
-  const { user, inventory, updateTokens, updateStardust, addScore } = useGame();
+  const { user, inventory, updateTokens, updateStardust, addScore, playAudio } = useGame();
   
   // States
-  const [phase, setPhase] = useState<'select' | 'combat' | 'result'>('select');
+  const [phase, setPhase] = useState<'difficulty' | 'select' | 'combat' | 'result'>('difficulty');
+  const [difficulty, setDifficulty] = useState(BATTLE_DIFFICULTIES.NORMAL);
   const [playerMon, setPlayerMon] = useState<Pokemon | null>(null);
   const [enemyMon, setEnemyMon] = useState<Pokemon | null>(null);
   const [combatLog, setCombatLog] = useState<TurnLog[]>([]);
@@ -29,22 +30,36 @@ const Battle: React.FC = () => {
   useEffect(() => {
     if (phase === 'select' && !enemyMon) {
         fetchRandomPokemon().then(p => {
-            // Buff enemy slightly based on user level to make it challenging
-            p.stats.hp = Math.floor(p.stats.hp * 1.1);
+            // Apply Difficulty Multiplier to Stats
+            p.stats.hp = Math.floor(p.stats.hp * difficulty.multiplier);
+            p.stats.attack = Math.floor(p.stats.attack * difficulty.multiplier);
+            p.stats.defense = Math.floor(p.stats.defense * difficulty.multiplier);
+            p.stats.speed = Math.floor(p.stats.speed * difficulty.multiplier);
             setEnemyMon(p);
         });
     }
-  }, [phase, enemyMon]);
+  }, [phase, enemyMon, difficulty]);
+
+  const selectDifficulty = (diff: typeof BATTLE_DIFFICULTIES.NORMAL) => {
+      setDifficulty(diff);
+      setPhase('select');
+  };
 
   const startBattle = (pokemon: Pokemon) => {
     setPlayerMon(pokemon);
     setPlayerHp(pokemon.stats.hp);
     setEnemyHp(enemyMon!.stats.hp);
     setPhase('combat');
-    setCombatLog([{ message: `Battle started! ${pokemon.name} vs ${enemyMon!.name}`, isPlayer: true }]);
+    setCombatLog([{ message: `Battle started! ${pokemon.name} vs ${enemyMon!.name} (${difficulty.label})`, isPlayer: true }]);
     setTurn(1);
     
-    // Determine first turn based on speed
+    // Play sound based on difficulty
+    if (difficulty.id === 'hard') {
+        playAudio('battle-start-hard');
+    } else {
+        playAudio('battle-start');
+    }
+    
     if (enemyMon!.stats.speed > pokemon.stats.speed) {
         setIsPlayerTurn(false);
         setTimeout(executeEnemyTurn, 1000);
@@ -56,6 +71,7 @@ const Battle: React.FC = () => {
   const executeTurn = (action: 'attack' | 'special' | 'heal', moveType?: string) => {
     if (!playerMon || !enemyMon || isProcessing) return;
     setIsProcessing(true);
+    playAudio('attack');
 
     // Player Action
     let logMsg = "";
@@ -64,21 +80,21 @@ const Battle: React.FC = () => {
         setPlayerHp(prev => Math.min(playerMon.stats.hp, prev + healAmount));
         logMsg = `${playerMon.name} healed for ${healAmount} HP!`;
     } else {
-        const { damage, effectiveness } = calculateDamage(playerMon, enemyMon, moveType);
-        setEnemyHp(prev => Math.max(0, prev - damage));
-        logMsg = `${playerMon.name} used ${action === 'special' ? moveType : 'Attack'}! It dealt ${damage} damage.`;
-        if (effectiveness === 'super') logMsg += " It's super effective!";
-        if (effectiveness === 'weak') logMsg += " It's not very effective...";
+        const { damage, effectiveness, isCritical, isMiss } = calculateDamage(playerMon, enemyMon, moveType);
+        
+        if (isMiss) {
+            logMsg = `${playerMon.name} tried to attack but MISSED!`;
+        } else {
+            setEnemyHp(prev => Math.max(0, prev - damage));
+            logMsg = `${playerMon.name} used ${action === 'special' ? moveType : 'Attack'}! Dealt ${damage} damage.`;
+            if (isCritical) logMsg += " CRITICAL HIT!";
+            if (effectiveness === 'super') logMsg += " It's super effective!";
+            if (effectiveness === 'weak') logMsg += " It's not very effective...";
+        }
     }
     
     setCombatLog(prev => [{ message: logMsg, isPlayer: true }, ...prev]);
 
-    // Check Win
-    if (enemyHp <= 0) { // Note: This check uses state which might not be updated immediately in this closure, 
-                        // but useEffect handles the end condition. We double check below.
-    }
-
-    // Switch turn
     setTimeout(() => {
        setIsPlayerTurn(false);
        setTimeout(executeEnemyTurn, 1000);
@@ -87,21 +103,24 @@ const Battle: React.FC = () => {
 
   const executeEnemyTurn = () => {
     if (!playerMon || !enemyMon) return;
-
-    // Check if enemy is dead already (from previous state update)
-    // We handle this in useEffect, but to be safe:
     if (enemyHp <= 0) return;
+    playAudio('attack');
 
     const { action, moveType } = getEnemyAction(enemyMon, playerMon);
-    const { damage, effectiveness } = calculateDamage(enemyMon, playerMon, moveType);
+    const { damage, effectiveness, isCritical, isMiss } = calculateDamage(enemyMon, playerMon, moveType);
 
-    setPlayerHp(prev => Math.max(0, prev - damage));
-    
-    let logMsg = `${enemyMon.name} used ${action === 'special' ? moveType : 'Attack'}! It dealt ${damage} damage.`;
-    if (effectiveness === 'super') logMsg += " It's super effective!";
-    if (effectiveness === 'weak') logMsg += " It's not very effective...";
+    if (isMiss) {
+        setCombatLog(prev => [{ message: `${enemyMon!.name} tried to attack but MISSED!`, isPlayer: false }, ...prev]);
+    } else {
+        setPlayerHp(prev => Math.max(0, prev - damage));
+        
+        let logMsg = `${enemyMon.name} used ${action === 'special' ? moveType : 'Attack'}! Dealt ${damage} damage.`;
+        if (isCritical) logMsg += " CRITICAL HIT!";
+        if (effectiveness === 'super') logMsg += " It's super effective!";
+        if (effectiveness === 'weak') logMsg += " It's not very effective...";
 
-    setCombatLog(prev => [{ message: logMsg, isPlayer: false }, ...prev]);
+        setCombatLog(prev => [{ message: logMsg, isPlayer: false }, ...prev]);
+    }
     
     setTimeout(() => {
         setIsPlayerTurn(true);
@@ -117,33 +136,93 @@ const Battle: React.FC = () => {
     if (enemyHp <= 0) {
         setBattleResult('win');
         setPhase('result');
+        playAudio('win');
         handleWin();
     } else if (playerHp <= 0) {
         setBattleResult('lose');
         setPhase('result');
+        playAudio('lose');
+        handleLoss();
     }
   }, [playerHp, enemyHp, phase]);
 
   const handleWin = async () => {
-    await updateStardust(REWARDS.BATTLE_WIN_STARDUST);
-    // XP is just score for now
-    await addScore(50);
+    const mult = difficulty.rewardMult;
+    await updateStardust(Math.floor(REWARDS.BATTLE_WIN_STARDUST * mult));
+    await updateTokens(Math.floor(REWARDS.BATTLE_WIN_TOKENS * mult));
+    await addScore(Math.floor(REWARDS.BATTLE_WIN_XP * mult));
+  };
+
+  const handleLoss = async () => {
+    if (user.tokens >= REWARDS.BATTLE_LOSS_TOKENS) {
+        await updateTokens(-REWARDS.BATTLE_LOSS_TOKENS);
+    }
   };
 
   const resetBattle = () => {
     setPlayerMon(null);
     setEnemyMon(null);
-    setPhase('select');
+    setPhase('difficulty');
     setBattleResult(null);
     setCombatLog([]);
+    playAudio('click');
   };
 
   // Renders
+  
+  // 1. Difficulty Phase
+  if (phase === 'difficulty') {
+      return (
+        <div className="max-w-xl mx-auto space-y-8 animate-fade-in pb-20">
+            <div className="text-center">
+                <h2 className="text-3xl font-bold text-white mb-2">Battle Simulation</h2>
+                <p className="text-slate-400">Choose your risk level.</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+                {Object.values(BATTLE_DIFFICULTIES).map((diff) => (
+                    <button 
+                        key={diff.id}
+                        onClick={() => selectDifficulty(diff)}
+                        className={`p-6 rounded-xl border-2 flex items-center justify-between transition-all hover:scale-105 group ${
+                            diff.id === 'easy' ? 'border-green-500 bg-green-500/10 hover:bg-green-500/20' :
+                            diff.id === 'normal' ? 'border-blue-500 bg-blue-500/10 hover:bg-blue-500/20' :
+                            'border-red-500 bg-red-500/10 hover:bg-red-500/20'
+                        }`}
+                    >
+                        <div className="text-left">
+                            <h3 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+                                {diff.id === 'hard' && <Skull size={20} className="text-red-400"/>}
+                                {diff.label}
+                            </h3>
+                            <p className="text-sm text-slate-400">Enemy Stats: {Math.round(diff.multiplier * 100)}%</p>
+                        </div>
+                        <div className="text-right">
+                             <div className="text-sm font-bold text-slate-300 uppercase">Rewards</div>
+                             <div className={`text-2xl font-bold ${
+                                 diff.id === 'hard' ? 'text-accent' : 'text-white'
+                             }`}>
+                                 {diff.rewardMult}x
+                             </div>
+                        </div>
+                    </button>
+                ))}
+            </div>
+        </div>
+      );
+  }
+
+  // 2. Selection Phase
   if (phase === 'select') {
     return (
         <div className="space-y-6 animate-fade-in pb-20">
-            <h2 className="text-3xl font-bold text-white mb-4">Battle Arena</h2>
-            <p className="text-slate-400 mb-4">Select your champion to fight.</p>
+            <div className="flex items-center gap-4">
+                <Button onClick={() => setPhase('difficulty')} variant="ghost" className="text-slate-400">Back</Button>
+                <div>
+                     <h2 className="text-3xl font-bold text-white">Select Champion</h2>
+                     <p className="text-slate-400 text-sm">Mode: {difficulty.label} ({difficulty.rewardMult}x Rewards)</p>
+                </div>
+            </div>
             
             {!enemyMon ? (
                 <div className="text-center py-10"><div className="animate-spin text-4xl">⚙️</div> Preparing opponent...</div>
@@ -173,6 +252,7 @@ const Battle: React.FC = () => {
     );
   }
 
+  // 3. Result Phase
   if (phase === 'result') {
     return (
         <div className="flex flex-col items-center justify-center h-[60vh] animate-zoom-in">
@@ -183,14 +263,18 @@ const Battle: React.FC = () => {
                         <h2 className="text-3xl font-bold text-white mb-2">Victory!</h2>
                         <p className="text-slate-400 mb-6">Your {playerMon?.name} defeated {enemyMon?.name}.</p>
                         
-                        <div className="flex justify-center gap-4 mb-8">
+                        <div className="grid grid-cols-3 gap-2 mb-8">
                              <div className="bg-slate-900 p-3 rounded-lg border border-slate-700">
                                 <span className="block text-xs text-slate-500">Stardust</span>
-                                <span className="text-xl font-bold text-purple-400">+{REWARDS.BATTLE_WIN_STARDUST}</span>
+                                <span className="text-xl font-bold text-purple-400">+{Math.floor(REWARDS.BATTLE_WIN_STARDUST * difficulty.rewardMult)}</span>
                              </div>
                              <div className="bg-slate-900 p-3 rounded-lg border border-slate-700">
-                                <span className="block text-xs text-slate-500">Score XP</span>
-                                <span className="text-xl font-bold text-secondary">+{REWARDS.BATTLE_WIN_XP}</span>
+                                <span className="block text-xs text-slate-500">Tokens</span>
+                                <span className="text-xl font-bold text-accent">+{Math.floor(REWARDS.BATTLE_WIN_TOKENS * difficulty.rewardMult)}</span>
+                             </div>
+                             <div className="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                                <span className="block text-xs text-slate-500">XP</span>
+                                <span className="text-xl font-bold text-secondary">+{Math.floor(REWARDS.BATTLE_WIN_XP * difficulty.rewardMult)}</span>
                              </div>
                         </div>
                     </>
@@ -198,7 +282,12 @@ const Battle: React.FC = () => {
                     <>
                         <Skull size={64} className="text-slate-600 mx-auto mb-4" />
                         <h2 className="text-3xl font-bold text-slate-300 mb-2">Defeat</h2>
-                        <p className="text-slate-500 mb-6">Your {playerMon?.name} fainted. No rewards gained.</p>
+                        <p className="text-slate-500 mb-6">
+                            Your {playerMon?.name} fainted.
+                            {user.tokens >= REWARDS.BATTLE_LOSS_TOKENS && (
+                                <span className="block text-red-400 mt-2">-{REWARDS.BATTLE_LOSS_TOKENS} Tokens lost.</span>
+                            )}
+                        </p>
                     </>
                 )}
                 
@@ -208,14 +297,18 @@ const Battle: React.FC = () => {
     );
   }
 
-  // Combat Phase
+  // 4. Combat Phase
   return (
     <div className="max-w-4xl mx-auto pb-20">
         {/* Battle Header */}
         <div className="flex justify-between items-center mb-6">
-            <div className="bg-slate-800 px-4 py-2 rounded-full border border-slate-700">
-                <span className="text-slate-400 text-xs font-bold uppercase">Turn {turn}</span>
+            <div className="flex items-center gap-2">
+                 <div className="bg-slate-800 px-4 py-2 rounded-full border border-slate-700">
+                    <span className="text-slate-400 text-xs font-bold uppercase">Turn {turn}</span>
+                </div>
+                {difficulty.id === 'hard' && <span className="text-red-500 text-xs font-bold border border-red-500 px-2 py-1 rounded">HIGH STAKES</span>}
             </div>
+            
             <Button variant="ghost" className="text-red-400 hover:text-red-300" onClick={resetBattle}>Flee Battle</Button>
         </div>
 

@@ -31,15 +31,7 @@ const imageToBase64 = async (url: string): Promise<string> => {
   }
 };
 
-export const fetchRandomPokemon = async (): Promise<Pokemon> => {
-  const randomId = Math.floor(Math.random() * 1025) + 1;
-  
-  try {
-    const response = await fetch(`${API_BASE}/pokemon/${randomId}`);
-    if (!response.ok) throw new Error("Network response was not ok");
-    
-    const data = await response.json();
-    
+const processPokemonData = async (data: any, rarityOverride?: Rarity): Promise<Pokemon> => {
     // Process types
     const types = data.types.map((t: any) => t.type.name);
     
@@ -55,7 +47,7 @@ export const fetchRandomPokemon = async (): Promise<Pokemon> => {
     const imageUrl = data.sprites.other['official-artwork'].front_default || data.sprites.front_default;
     const base64Image = await imageToBase64(imageUrl);
 
-    const rarity = determineRarity();
+    const rarity = rarityOverride || determineRarity();
 
     // Adjust stats based on rarity multiplier (simple logic)
     const multiplier = {
@@ -84,9 +76,88 @@ export const fetchRandomPokemon = async (): Promise<Pokemon> => {
       isAiGenerated: false,
       acquiredAt: Date.now(),
     };
+};
 
+export const fetchRandomPokemon = async (): Promise<Pokemon> => {
+  const randomId = Math.floor(Math.random() * 1025) + 1;
+  try {
+    const response = await fetch(`${API_BASE}/pokemon/${randomId}`);
+    if (!response.ok) throw new Error("Network response was not ok");
+    const data = await response.json();
+    return processPokemonData(data);
   } catch (error) {
     console.error("Error fetching pokemon:", error);
     throw error;
+  }
+};
+
+export const fetchPokemonById = async (id: number, rarity?: Rarity): Promise<Pokemon> => {
+  try {
+    const response = await fetch(`${API_BASE}/pokemon/${id}`);
+    if (!response.ok) throw new Error("Network response was not ok");
+    const data = await response.json();
+    return processPokemonData(data, rarity);
+  } catch (error) {
+    console.error("Error fetching pokemon by id:", error);
+    throw error;
+  }
+};
+
+export const fetchEvolution = async (currentApiId: number): Promise<Pokemon | null> => {
+  try {
+    // 1. Get Species
+    const speciesRes = await fetch(`${API_BASE}/pokemon-species/${currentApiId}`);
+    if (!speciesRes.ok) return null;
+    const speciesData = await speciesRes.json();
+
+    // 2. Get Evolution Chain
+    const chainUrl = speciesData.evolution_chain?.url;
+    if (!chainUrl) return null;
+    
+    const chainRes = await fetch(chainUrl);
+    if (!chainRes.ok) return null;
+    const chainData = await chainRes.json();
+
+    // 3. Traverse Chain to find next evolution
+    let currentStage = chainData.chain;
+    
+    // Recursive search for the current pokemon in the chain
+    const findNextEvolution = (chain: any): any => {
+      // API returns species name/url. ID is in URL.
+      const idFromUrl = (url: string) => parseInt(url.split('/').filter(Boolean).pop() || '0');
+      
+      const chainId = idFromUrl(chain.species.url);
+
+      if (chainId === currentApiId) {
+        // Found current, return first evolution if exists
+        if (chain.evolves_to && chain.evolves_to.length > 0) {
+          return chain.evolves_to[0].species; // Simple: Pick first branch
+        }
+        return null; // No evolution
+      }
+
+      // Check children
+      if (chain.evolves_to) {
+        for (const child of chain.evolves_to) {
+          const result = findNextEvolution(child);
+          if (result) return result;
+        }
+      }
+      return null;
+    }
+
+    const nextSpecies = findNextEvolution(currentStage);
+
+    if (nextSpecies) {
+      // 4. Fetch the evolved pokemon
+      // Species name matches pokemon name usually, but safer to use ID if we extracted it, or name
+      return await fetchPokemonById(parseInt(nextSpecies.url.split('/').filter(Boolean).pop() || '0'), Rarity.RARE); // Evolved forms are at least Rare
+    }
+
+    return null;
+
+  } catch (e) {
+    console.error("Evolution fetch failed", e);
+    return null;
   }
 };

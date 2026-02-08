@@ -44,10 +44,18 @@
 - [x] Improve stat comparison between Pokémon (Visual Stat Bars)
 - [x] Add Pokédex completion percentage
 
-## Planned Tasks
-- [ ] Add sorting by ID/Name/Stat
-- [ ] Add evolution chains (consume duplicates to evolve)
-- [ ] Add simple sound effects (using web audio api)
-- [ ] Correct the fact that the Tokens reset when we use them
-- [ ] Change the number of starting tokens to 1000
-- [ ] Add reward tokens for winning fights and losing tokens for losing fights
+## Completed Tasks
+- [x] Add sorting by ID/Name/Stat
+- [x] Add evolution chains (consume duplicates to evolve)
+- [x] Add simple sound effects (using web audio api)
+- [x] Correct the fact that the Tokens reset when we use them (Fix: Race condition in State)
+- [x] Change the number of starting tokens to 1000
+- [x] Add reward tokens for winning fights and losing tokens for losing fights
+
+### Gameplay Expansion (Done)
+
+- [x] Add Pokémon capture animations (Pulsing Orb sequence)
+- [x] Add sound themes per battle difficulty (Pitch/Rhythm shifts)
+- [x] Introduce random in-battle events (Critical Hits & Misses)
+- [x] Add trainer titles based on achievements (Rookie -> Master)
+- [x] Implement risk/reward battle modifiers (Training, Standard, High Stakes)

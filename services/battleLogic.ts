@@ -1,11 +1,22 @@
 import { Pokemon, TurnLog } from '../types';
 import { TYPE_CHART } from '../constants';
 
-export const calculateDamage = (attacker: Pokemon, defender: Pokemon, moveType?: string): { damage: number, effectiveness: string } => {
-  // Base power for standard attack is 40, Special (typed) is 70
+export const calculateDamage = (attacker: Pokemon, defender: Pokemon, moveType?: string): { damage: number, effectiveness: string, isCritical: boolean, isMiss: boolean } => {
+  // 1. Check for Miss (5% chance)
+  // Speed difference affects miss chance slightly
+  let missChance = 0.05;
+  if (defender.stats.speed > attacker.stats.speed) {
+      missChance += 0.05; // 10% miss if enemy is faster
+  }
+  
+  if (Math.random() < missChance) {
+      return { damage: 0, effectiveness: 'normal', isCritical: false, isMiss: true };
+  }
+
+  // Base power for standard attack is 40, Special (typed) is 75
   const power = moveType ? 75 : 40;
   
-  // Basic formula: (Attack / Defense) * Power * Random
+  // Basic formula: (Attack / Defense) * Power
   const rawDamage = (attacker.stats.attack / defender.stats.defense) * power;
   
   let multiplier = 1;
@@ -36,6 +47,12 @@ export const calculateDamage = (attacker: Pokemon, defender: Pokemon, moveType?:
     }
   }
 
+  // Critical Hit Check (10% chance)
+  const isCritical = Math.random() < 0.1;
+  if (isCritical) {
+      multiplier *= 1.5;
+  }
+
   // Random variance (0.85 to 1.0)
   const variance = (Math.random() * 0.15) + 0.85;
   
@@ -44,7 +61,9 @@ export const calculateDamage = (attacker: Pokemon, defender: Pokemon, moveType?:
   // Ensure at least 1 damage
   return { 
     damage: Math.max(1, totalDamage), 
-    effectiveness 
+    effectiveness,
+    isCritical,
+    isMiss: false
   };
 };
 

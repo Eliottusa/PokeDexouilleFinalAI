@@ -18,14 +18,17 @@ export const REWARDS = {
   SCORE_SELL: 3,
   BATTLE_WIN_STARDUST: 15,
   BATTLE_WIN_XP: 50,
+  BATTLE_WIN_TOKENS: 20,
+  BATTLE_LOSS_TOKENS: 10,
 };
 
 export const INITIAL_USER_STATE = {
-  tokens: 100,
+  tokens: 1000,
   stardust: 0,
   pokedexScore: 0,
   xp: 0,
   level: 1,
+  title: 'Rookie',
 };
 
 export const DB_NAME = 'pokegen-dex-db';
@@ -99,3 +102,19 @@ export const GENERATIONS = [
 ];
 
 export const TOTAL_POKEMON_COUNT = 1025;
+
+export const TRAINER_TITLES = [
+  { threshold: 0, title: 'Rookie' },
+  { threshold: 100, title: 'Bug Catcher' },
+  { threshold: 500, title: 'Ace Trainer' },
+  { threshold: 1000, title: 'Gym Leader' },
+  { threshold: 2500, title: 'Elite Four' },
+  { threshold: 5000, title: 'Champion' },
+  { threshold: 10000, title: 'Pokémon Master' },
+];
+
+export const BATTLE_DIFFICULTIES = {
+  EASY: { id: 'easy', label: 'Training', multiplier: 0.8, rewardMult: 0.5 },
+  NORMAL: { id: 'normal', label: 'Standard', multiplier: 1.0, rewardMult: 1.0 },
+  HARD: { id: 'hard', label: 'High Stakes', multiplier: 1.3, rewardMult: 2.0 },
+};

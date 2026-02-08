@@ -1,16 +1,31 @@
 import React, { useMemo, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import PokemonCard from '../components/PokemonCard';
-import { Search, Filter, BarChart2, PieChart } from 'lucide-react';
+import Button from '../components/Button';
+import { Search, Filter, BarChart2, PieChart, ArrowUpDown, Dna } from 'lucide-react';
 import { Rarity } from '../types';
 import { GENERATIONS, TOTAL_POKEMON_COUNT } from '../constants';
 
 const Pokedex: React.FC = () => {
-  const { inventory } = useGame();
+  const { inventory, evolvePokemon } = useGame();
   const [searchTerm, setSearchTerm] = useState('');
   const [rarityFilter, setRarityFilter] = useState<string>('all');
   const [genFilter, setGenFilter] = useState<number | 'all' | 'ai'>('all');
-  const [showStats, setShowStats] = useState(true);
+  const [sortMethod, setSortMethod] = useState<'date' | 'name' | 'id' | 'power'>('date');
+  const [showStats, setShowStats] = useState(false);
+  const [evolveMode, setEvolveMode] = useState(false);
+  const [processingEvolution, setProcessingEvolution] = useState<string | null>(null);
+
+  // Group by API ID to find duplicates
+  const evolutionCandidates = useMemo(() => {
+      const counts: Record<number, number> = {};
+      inventory.forEach(p => {
+          if (p.apiId > 0) {
+              counts[p.apiId] = (counts[p.apiId] || 0) + 1;
+          }
+      });
+      return new Set(Object.keys(counts).filter(id => counts[Number(id)] >= 3).map(Number));
+  }, [inventory]);
 
   const filteredInventory = useMemo(() => {
     return inventory.filter(p => {
@@ -27,14 +42,20 @@ const Pokedex: React.FC = () => {
         }
       }
 
+      // If Evolve Mode is on, only show candidates
+      if (evolveMode) {
+          if (p.apiId === 0 || !evolutionCandidates.has(p.apiId)) return false;
+          // Show only one of each candidate type to avoid clutter? No, grid needs to select.
+          // For now, show all, but we will add visual cues.
+      }
+
       return matchesSearch && matchesRarity && matchesGen;
     });
-  }, [inventory, searchTerm, rarityFilter, genFilter]);
+  }, [inventory, searchTerm, rarityFilter, genFilter, evolveMode, evolutionCandidates]);
 
   // Statistics Calculation
   const stats = useMemo(() => {
     const totalCaught = inventory.length;
-    // Unique ID based on API ID (ignoring AI generation duplicates for purity, but counting unique AI IDs)
     const uniqueIds = new Set(inventory.filter(p => p.apiId > 0).map(p => p.apiId));
     const uniqueCount = uniqueIds.size;
     const completionPercentage = (uniqueCount / TOTAL_POKEMON_COUNT) * 100;
@@ -56,8 +77,29 @@ const Pokedex: React.FC = () => {
     return { totalCaught, uniqueCount, completionPercentage, rarityCounts };
   }, [inventory]);
 
-  // Sort by acquisition time (newest first)
-  const sortedInventory = [...filteredInventory].sort((a, b) => b.acquiredAt - a.acquiredAt);
+  // Sorting
+  const sortedInventory = [...filteredInventory].sort((a, b) => {
+      switch (sortMethod) {
+          case 'name': return a.name.localeCompare(b.name);
+          case 'id': return (a.apiId || 99999) - (b.apiId || 99999);
+          case 'power': 
+             const powerA = a.stats.attack + a.stats.defense + a.stats.hp + a.stats.speed;
+             const powerB = b.stats.attack + b.stats.defense + b.stats.hp + b.stats.speed;
+             return powerB - powerA;
+          case 'date': 
+          default: return b.acquiredAt - a.acquiredAt;
+      }
+  });
+
+  const handleEvolve = async (pokemon: any) => {
+      if (!confirm(`Evolve ${pokemon.name}? This will consume 3 copies to attempt to find the next evolution form.`)) return;
+      setProcessingEvolution(pokemon.id);
+      const success = await evolvePokemon(pokemon);
+      if (!success) {
+          alert("Evolution failed! Either no evolution exists or a network error occurred.");
+      }
+      setProcessingEvolution(null);
+  };
 
   return (
     <div className="space-y-6 animate-fade-in h-full pb-20">
@@ -68,20 +110,38 @@ const Pokedex: React.FC = () => {
             <h2 className="text-3xl font-bold text-white">Pokédex</h2>
             <p className="text-slate-400">Manage your collection.</p>
         </div>
-        <button 
-          onClick={() => setShowStats(!showStats)} 
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors ${showStats ? 'bg-primary/20 border-primary text-primary' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}`}
-        >
-          <BarChart2 size={16} />
-          <span className="text-sm font-medium">Analytics</span>
-        </button>
+        <div className="flex gap-2">
+            <button 
+            onClick={() => setEvolveMode(!evolveMode)} 
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors ${evolveMode ? 'bg-secondary/20 border-secondary text-secondary' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}`}
+            >
+            <Dna size={16} />
+            <span className="text-sm font-medium">Evolution</span>
+            </button>
+            <button 
+            onClick={() => setShowStats(!showStats)} 
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors ${showStats ? 'bg-primary/20 border-primary text-primary' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}`}
+            >
+            <BarChart2 size={16} />
+            <span className="text-sm font-medium">Analytics</span>
+            </button>
+        </div>
       </div>
 
-      {/* Stats Panel (Heatmap / Progress) */}
+      {evolveMode && (
+          <div className="bg-secondary/10 border border-secondary/50 p-4 rounded-xl text-secondary text-sm flex items-center gap-3">
+              <Dna size={20} />
+              <div>
+                  <span className="font-bold">Evolution Protocol Active</span>
+                  <p className="opacity-80">Pokémon with 3+ copies are highlighted. Click "Evolve" on a card to merge 3 copies into the next evolution stage.</p>
+              </div>
+          </div>
+      )}
+
+      {/* Stats Panel */}
       {showStats && (
         <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 animate-slide-in">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Completion Progress */}
             <div>
               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-2">
                 <PieChart size={16} /> Global Completion
@@ -96,22 +156,14 @@ const Pokedex: React.FC = () => {
                   style={{ width: `${stats.completionPercentage}%` }}
                 ></div>
               </div>
-              <div className="flex justify-between mt-1">
-                <span className="text-xs text-slate-500">0%</span>
-                <span className="text-xs text-primary font-bold">{stats.completionPercentage.toFixed(1)}%</span>
-                <span className="text-xs text-slate-500">100%</span>
-              </div>
             </div>
-
-            {/* Rarity Heatmap / Distribution */}
             <div>
               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wide mb-2">Rarity Distribution</h3>
               <div className="space-y-2">
                 {[Rarity.COMMON, Rarity.RARE, Rarity.EPIC, Rarity.LEGENDARY, Rarity.MYTHICAL].map((rarity) => {
                    const count = stats.rarityCounts[rarity];
-                   const max = Math.max(...Object.values(stats.rarityCounts), 1); // Avoid div by zero
+                   const max = Math.max(...Object.values(stats.rarityCounts), 1);
                    const percent = (count / max) * 100;
-                   
                    const colorClass = {
                       [Rarity.COMMON]: 'bg-slate-500',
                       [Rarity.RARE]: 'bg-blue-500',
@@ -138,7 +190,6 @@ const Pokedex: React.FC = () => {
 
       {/* Filters Toolbar */}
       <div className="flex flex-col md:flex-row gap-3 bg-slate-800 p-3 rounded-xl border border-slate-700 sticky top-0 z-10 shadow-xl">
-          {/* Search */}
           <div className="relative flex-1">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input 
@@ -151,6 +202,21 @@ const Pokedex: React.FC = () => {
           </div>
 
           <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0 hide-scrollbar">
+            {/* Sort Filter */}
+            <div className="relative min-w-[140px]">
+                <select 
+                    value={sortMethod}
+                    onChange={(e) => setSortMethod(e.target.value as any)}
+                    className="w-full appearance-none bg-slate-900 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:ring-2 focus:ring-primary focus:outline-none cursor-pointer"
+                >
+                    <option value="date">Date (Newest)</option>
+                    <option value="name">Name (A-Z)</option>
+                    <option value="id">ID (Asc)</option>
+                    <option value="power">Combat Power</option>
+                </select>
+                <ArrowUpDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+            </div>
+
             {/* Rarity Filter */}
             <div className="relative min-w-[120px]">
                 <select 
@@ -201,9 +267,29 @@ const Pokedex: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-            {sortedInventory.map(pokemon => (
-                <PokemonCard key={pokemon.id} pokemon={pokemon} />
-            ))}
+            {sortedInventory.map(pokemon => {
+                const canEvolve = evolutionCandidates.has(pokemon.apiId);
+                return (
+                    <div key={pokemon.id} className="relative group">
+                        <PokemonCard pokemon={pokemon} />
+                        {evolveMode && canEvolve && (
+                            <div className="absolute inset-0 bg-slate-900/80 rounded-xl flex items-center justify-center z-20 backdrop-blur-sm">
+                                <Button 
+                                    onClick={() => handleEvolve(pokemon)}
+                                    isLoading={processingEvolution === pokemon.id}
+                                    className="shadow-lg shadow-secondary/50 border border-secondary"
+                                    variant="secondary"
+                                >
+                                    Evolve (3x)
+                                </Button>
+                            </div>
+                        )}
+                        {evolveMode && !canEvolve && (
+                            <div className="absolute inset-0 bg-slate-950/80 rounded-xl z-20"></div>
+                        )}
+                    </div>
+                );
+            })}
         </div>
       )}
     </div>

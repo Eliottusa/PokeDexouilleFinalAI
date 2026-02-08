@@ -1,6 +1,6 @@
 import React from 'react';
 import { useGame } from '../context/GameContext';
-import { Trophy, Wallet, Zap, Star, Activity } from 'lucide-react';
+import { Trophy, Wallet, Zap, Star, Activity, Medal } from 'lucide-react';
 import Button from '../components/Button';
 
 const Dashboard: React.FC = () => {
@@ -23,9 +23,15 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div>
-        <h2 className="text-3xl font-bold text-white mb-2">Welcome Trainer</h2>
-        <p className="text-slate-400">Here is your current status and progress.</p>
+      <div className="flex justify-between items-end">
+        <div>
+            <div className="flex items-center gap-2 mb-1">
+                <Medal size={20} className="text-accent" />
+                <span className="text-accent font-bold uppercase tracking-widest text-sm">{user.title}</span>
+            </div>
+            <h2 className="text-3xl font-bold text-white">Welcome Trainer</h2>
+            <p className="text-slate-400">Here is your current status and progress.</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -80,7 +86,7 @@ const Dashboard: React.FC = () => {
             <div className="mt-6 p-4 bg-slate-900/50 rounded-xl border border-slate-700/50">
                 <h4 className="text-sm font-semibold text-slate-300 mb-2">Tip</h4>
                 <p className="text-xs text-slate-500">
-                    Sell common Pokémon to regain tokens. Keep rares for better battle stats later!
+                    Battling at "High Stakes" grants 2x rewards but enemies are 30% stronger!
                 </p>
             </div>
         </div>
