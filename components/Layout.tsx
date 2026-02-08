@@ -1,6 +1,6 @@
 import React from 'react';
 import { useGame } from '../context/GameContext';
-import { Home, Zap, List, ShoppingBag, Sword, Award, Sun, CloudRain, Snowflake, Leaf } from 'lucide-react';
+import { Home, Zap, List, ShoppingBag, Sword, Award, Sun, CloudRain, Snowflake, Leaf, Users } from 'lucide-react';
 import { ViewState } from '../types';
 
 interface LayoutProps {
@@ -65,6 +65,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <NavItem view="dashboard" icon={Home} label="Home" />
         <NavItem view="generator" icon={Zap} label="Lab" />
         <NavItem view="pokedex" icon={List} label="Dex" />
+        <NavItem view="social" icon={Users} label="Social" />
         <NavItem view="battle" icon={Sword} label="Battle" />
         <NavItem view="marketplace" icon={ShoppingBag} label="Market" />
         

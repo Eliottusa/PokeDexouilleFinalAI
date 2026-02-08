@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { GameContextType, GameState, Pokemon, UserProfile, ViewState, MarketListing, Season, SEASONS } from '../types';
+import { GameContextType, GameState, Pokemon, UserProfile, ViewState, MarketListing, Season, SEASONS, SocialState, RivalChallenge } from '../types';
 import { getUserProfile, getInventory, saveUserProfile, addPokemonToInventory, removePokemonFromInventory } from '../services/db';
 import { INITIAL_USER_STATE, COSTS, TRAINER_TITLES } from '../constants';
 import { generateMarketListings } from '../services/marketLogic';
-import { fetchEvolution } from '../services/pokeApi';
+import { generateMockLeaderboard, generateTradeOffers, initialGuildState } from '../services/socialService';
+import { fetchEvolution, fetchRandomPokemon } from '../services/pokeApi';
 import { playSound, SoundType } from '../services/soundService';
 
 interface ExtendedGameContextType extends GameContextType {
@@ -33,6 +34,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Transient state
   const [marketListings, setMarketListings] = useState<MarketListing[]>([]);
   const [season, setSeason] = useState<Season>('Spring');
+  
+  // Social State
+  const [social, setSocial] = useState<SocialState>({
+    trades: [],
+    leaderboard: [],
+    guild: initialGuildState,
+    rivalBattle: undefined
+  });
 
   const refreshData = async () => {
     setIsLoading(true);
@@ -49,6 +58,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const initialListings = await generateMarketListings(3);
       setMarketListings(initialListings);
+
+      // Social Init
+      const trades = await generateTradeOffers(3);
+      const leaderboard = generateMockLeaderboard(u);
+      setSocial(prev => ({ ...prev, trades, leaderboard }));
 
     } catch (e) {
       console.error("Failed to load initial data", e);
@@ -106,11 +120,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const removePokemon = async (id: string) => {
     setInventory(prev => prev.filter(p => p.id !== id));
     await removePokemonFromInventory(id);
-    // Score for selling is handled by addScore separately usually, but here we keep it consistent
   };
 
   const evolvePokemon = async (basePokemon: Pokemon): Promise<boolean> => {
-    // 1. Check eligibility (3 copies)
     const copies = inventory.filter(p => p.apiId === basePokemon.apiId);
     if (copies.length < 3) return false;
 
@@ -119,13 +131,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const evolvedForm = await fetchEvolution(basePokemon.apiId);
         
         if (evolvedForm) {
-            // Remove 3 copies
             const toRemove = copies.slice(0, 3);
             for (const p of toRemove) {
                 await removePokemon(p.id);
             }
-            
-            // Add new
             await addPokemon(evolvedForm);
             playSound('evolve');
             return true;
@@ -172,6 +181,75 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setMarketListings(prev => prev.map(l => l.id === listingId ? { ...l, sold: true } : l));
   };
 
+  // Social Actions
+  const acceptTrade = async (offerId: string, myPokemonId: string) => {
+    const offer = social.trades.find(t => t.id === offerId);
+    if (!offer) return;
+    
+    // Process Trade
+    await removePokemon(myPokemonId);
+    await addPokemon(offer.offeredPokemon);
+    
+    // Remove Offer
+    setSocial(prev => ({
+        ...prev,
+        trades: prev.trades.filter(t => t.id !== offerId)
+    }));
+  };
+
+  const contributeToGuild = async (amount: number) => {
+    if (user.stardust < amount) {
+        playSound('error');
+        return;
+    }
+    await updateStardust(-amount);
+    
+    setSocial(prev => {
+        const newProg = prev.guild.totalProgress + amount;
+        let newLevel = prev.guild.level;
+        let newGoal = prev.guild.currentGoal;
+
+        if (newProg >= prev.guild.currentGoal) {
+            newLevel++;
+            newGoal = Math.floor(newGoal * 1.5);
+            playSound('success'); // Level up sound
+        } else {
+            playSound('click');
+        }
+
+        return {
+            ...prev,
+            guild: {
+                ...prev.guild,
+                contribution: prev.guild.contribution + amount,
+                totalProgress: newProg,
+                level: newLevel,
+                currentGoal: newGoal
+            }
+        };
+    });
+  };
+
+  const startRivalBattle = async (trainerName: string) => {
+    // Generate a slightly stronger pokemon for the rival
+    const rivalMon = await fetchRandomPokemon();
+    rivalMon.stats.hp = Math.floor(rivalMon.stats.hp * 1.5);
+    rivalMon.stats.attack = Math.floor(rivalMon.stats.attack * 1.2);
+    
+    setSocial(prev => ({
+        ...prev,
+        rivalBattle: {
+            trainerName,
+            pokemon: rivalMon
+        }
+    }));
+    setView('battle');
+  };
+
+  const clearRivalBattle = () => {
+    setSocial(prev => ({ ...prev, rivalBattle: undefined }));
+  };
+
   const playAudio = (type: SoundType) => {
       playSound(type);
   };
@@ -183,6 +261,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading,
     marketListings,
     season,
+    social,
     setView,
     addPokemon,
     removePokemon,
@@ -193,7 +272,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshMarket,
     buyMarketItem,
     playAudio,
-    evolvePokemon
+    evolvePokemon,
+    acceptTrade,
+    contributeToGuild,
+    startRivalBattle,
+    clearRivalBattle
   };
 
   return (

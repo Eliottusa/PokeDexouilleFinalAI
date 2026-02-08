@@ -6,6 +6,7 @@ import Generator from './views/Generator';
 import Pokedex from './views/Pokedex';
 import Battle from './views/Battle';
 import Marketplace from './views/Marketplace';
+import SocialHub from './views/SocialHub';
 
 const GameRouter: React.FC = () => {
   const { activeView, isLoading } = useGame();
@@ -28,6 +29,7 @@ const GameRouter: React.FC = () => {
       {activeView === 'pokedex' && <Pokedex />}
       {activeView === 'battle' && <Battle />}
       {activeView === 'marketplace' && <Marketplace />}
+      {activeView === 'social' && <SocialHub />}
     </Layout>
   );
 };

@@ -59,3 +59,20 @@
 - [x] Introduce random in-battle events (Critical Hits & Misses)
 - [x] Add trainer titles based on achievements (Rookie -> Master)
 - [x] Implement risk/reward battle modifiers (Training, Standard, High Stakes)
+
+### Social Simulation (Done)
+
+- [x] Simulated online player profiles (Leaderboard view with NPCs)
+- [x] Asynchronous trade offers (GTS Exchange system)
+- [x] Seasonal leaderboard rewards (Ranking system)
+- [x] Guild cooperative challenges (Stardust donation system)
+- [x] NPC rival trainers with progression (High-stakes rival battles)
+
+### Planned – Long-Term Progression
+
+- [ ] Prestige system after max level
+- [ ] Legacy Pokémon with special markers
+- [ ] Archive system for retired Pokémon
+- [ ] End-of-season summaries
+- [ ] Narrative events tied to seasons
+- [ ] Add a light/dark mode

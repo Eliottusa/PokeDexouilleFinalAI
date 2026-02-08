@@ -9,7 +9,7 @@ import PokemonCard from '../components/PokemonCard';
 import { Sword, Trophy, Skull, Gauge, Zap } from 'lucide-react';
 
 const Battle: React.FC = () => {
-  const { user, inventory, updateTokens, updateStardust, addScore, playAudio } = useGame();
+  const { user, inventory, updateTokens, updateStardust, addScore, playAudio, social, clearRivalBattle } = useGame();
   
   // States
   const [phase, setPhase] = useState<'difficulty' | 'select' | 'combat' | 'result'>('difficulty');
@@ -26,7 +26,17 @@ const Battle: React.FC = () => {
   const [playerHp, setPlayerHp] = useState(0);
   const [enemyHp, setEnemyHp] = useState(0);
 
-  // Initialize Enemy
+  // Check for Rival Battle on Mount
+  useEffect(() => {
+    if (social.rivalBattle) {
+        // Bypass difficulty selection for rival battles
+        setDifficulty(BATTLE_DIFFICULTIES.HARD);
+        setEnemyMon(social.rivalBattle.pokemon);
+        setPhase('select');
+    }
+  }, [social.rivalBattle]);
+
+  // Initialize Random Enemy (if not rival)
   useEffect(() => {
     if (phase === 'select' && !enemyMon) {
         fetchRandomPokemon().then(p => {
@@ -50,11 +60,17 @@ const Battle: React.FC = () => {
     setPlayerHp(pokemon.stats.hp);
     setEnemyHp(enemyMon!.stats.hp);
     setPhase('combat');
-    setCombatLog([{ message: `Battle started! ${pokemon.name} vs ${enemyMon!.name} (${difficulty.label})`, isPlayer: true }]);
+    
+    const opponentName = social.rivalBattle ? social.rivalBattle.trainerName : enemyMon!.name;
+    const msg = social.rivalBattle 
+        ? `RIVAL BATTLE! You are challenged by ${opponentName}!`
+        : `Battle started! ${pokemon.name} vs ${enemyMon!.name} (${difficulty.label})`;
+
+    setCombatLog([{ message: msg, isPlayer: true }]);
     setTurn(1);
     
-    // Play sound based on difficulty
-    if (difficulty.id === 'hard') {
+    // Play sound based on difficulty or rival
+    if (difficulty.id === 'hard' || social.rivalBattle) {
         playAudio('battle-start-hard');
     } else {
         playAudio('battle-start');
@@ -166,6 +182,9 @@ const Battle: React.FC = () => {
     setBattleResult(null);
     setCombatLog([]);
     playAudio('click');
+    if (social.rivalBattle) {
+        clearRivalBattle();
+    }
   };
 
   // Renders
@@ -217,7 +236,7 @@ const Battle: React.FC = () => {
     return (
         <div className="space-y-6 animate-fade-in pb-20">
             <div className="flex items-center gap-4">
-                <Button onClick={() => setPhase('difficulty')} variant="ghost" className="text-slate-400">Back</Button>
+                {!social.rivalBattle && <Button onClick={() => setPhase('difficulty')} variant="ghost" className="text-slate-400">Back</Button>}
                 <div>
                      <h2 className="text-3xl font-bold text-white">Select Champion</h2>
                      <p className="text-slate-400 text-sm">Mode: {difficulty.label} ({difficulty.rewardMult}x Rewards)</p>
@@ -227,10 +246,10 @@ const Battle: React.FC = () => {
             {!enemyMon ? (
                 <div className="text-center py-10"><div className="animate-spin text-4xl">⚙️</div> Preparing opponent...</div>
             ) : (
-                <div className="bg-slate-800 p-4 rounded-xl border border-red-900/50 mb-6 flex items-center gap-4">
+                <div className={`bg-slate-800 p-4 rounded-xl border ${social.rivalBattle ? 'border-red-500 bg-red-900/20' : 'border-red-900/50'} mb-6 flex items-center gap-4`}>
                     <div className="bg-red-500/10 p-2 rounded-full"><Sword className="text-red-500"/></div>
                     <div>
-                        <p className="text-xs text-red-400 uppercase font-bold">Opponent Found</p>
+                        <p className="text-xs text-red-400 uppercase font-bold">{social.rivalBattle ? `RIVAL: ${social.rivalBattle.trainerName}` : 'Opponent Found'}</p>
                         <h3 className="text-xl font-bold text-white">{enemyMon.name} (HP: {enemyMon.stats.hp})</h3>
                         <div className="flex gap-1 mt-1">
                              {enemyMon.types.map(t => <span key={t} className={`px-2 py-0.5 rounded text-[10px] uppercase text-white ${TYPE_COLORS[t] || 'bg-gray-500'}`}>{t}</span>)}
@@ -306,7 +325,7 @@ const Battle: React.FC = () => {
                  <div className="bg-slate-800 px-4 py-2 rounded-full border border-slate-700">
                     <span className="text-slate-400 text-xs font-bold uppercase">Turn {turn}</span>
                 </div>
-                {difficulty.id === 'hard' && <span className="text-red-500 text-xs font-bold border border-red-500 px-2 py-1 rounded">HIGH STAKES</span>}
+                {(difficulty.id === 'hard' || social.rivalBattle) && <span className="text-red-500 text-xs font-bold border border-red-500 px-2 py-1 rounded">HIGH STAKES</span>}
             </div>
             
             <Button variant="ghost" className="text-red-400 hover:text-red-300" onClick={resetBattle}>Flee Battle</Button>
@@ -337,6 +356,7 @@ const Battle: React.FC = () => {
                 <div className="relative z-10 flex flex-col items-center">
                     <img src={enemyMon?.sprite} className="w-32 h-32 object-contain drop-shadow-2xl" />
                     <h3 className="text-xl font-bold text-white mt-4">{enemyMon?.name}</h3>
+                    <p className="text-xs text-red-400 font-bold uppercase tracking-wide">{social.rivalBattle ? `Rival ${social.rivalBattle.trainerName}` : 'Wild Pokémon'}</p>
                     
                     {/* HP Bar */}
                     <div className="w-full bg-slate-900 h-4 rounded-full mt-2 overflow-hidden border border-slate-600">

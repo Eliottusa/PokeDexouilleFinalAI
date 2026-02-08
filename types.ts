@@ -37,7 +37,7 @@ export interface UserProfile {
   title: string;
 }
 
-export type ViewState = 'dashboard' | 'generator' | 'pokedex' | 'battle' | 'marketplace';
+export type ViewState = 'dashboard' | 'generator' | 'pokedex' | 'battle' | 'marketplace' | 'social';
 
 export interface GameState {
   user: UserProfile;
@@ -46,6 +46,45 @@ export interface GameState {
   activeView: ViewState;
   marketListings: MarketListing[];
   season: Season;
+  social: SocialState;
+}
+
+export interface SocialState {
+  trades: TradeOffer[];
+  leaderboard: LeaderboardEntry[];
+  guild: GuildState;
+  rivalBattle?: RivalChallenge;
+}
+
+export interface TradeOffer {
+  id: string;
+  traderName: string;
+  offeredPokemon: Pokemon;
+  requestedType?: string; // e.g. 'fire'
+  requestedRarity?: Rarity; // e.g. 'Rare'
+  expiresAt: number;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  name: string;
+  score: number;
+  title: string;
+  isRival: boolean;
+  isUser: boolean;
+}
+
+export interface GuildState {
+  name: string;
+  level: number;
+  contribution: number;
+  totalProgress: number;
+  currentGoal: number;
+}
+
+export interface RivalChallenge {
+  trainerName: string;
+  pokemon: Pokemon;
 }
 
 export interface GameContextType extends GameState {
@@ -58,6 +97,11 @@ export interface GameContextType extends GameState {
   refreshData: () => Promise<void>;
   refreshMarket: () => void;
   buyMarketItem: (listingId: string) => Promise<void>;
+  // Social
+  acceptTrade: (offerId: string, myPokemonId: string) => Promise<void>;
+  contributeToGuild: (amount: number) => Promise<void>;
+  startRivalBattle: (trainerName: string) => Promise<void>;
+  clearRivalBattle: () => void;
 }
 
 export interface TurnLog {
