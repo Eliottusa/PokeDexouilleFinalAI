@@ -276,7 +276,9 @@ const Battle: React.FC = () => {
     
     if (playerMon) {
         const newFriendship = Math.min(255, (playerMon.friendship || 0) + 2);
-        await updatePokemon({ ...playerMon, friendship: newFriendship });
+        const wins = (playerMon.battlesWon || 0) + 1;
+        const newHistory = [...(playerMon.history || []), `Defeated ${enemyMon?.name} on ${new Date().toLocaleDateString()}`];
+        await updatePokemon({ ...playerMon, friendship: newFriendship, battlesWon: wins, history: newHistory });
     }
   };
 

@@ -209,8 +209,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addPokemon = async (pokemon: Pokemon) => {
-    setInventory(prev => [pokemon, ...prev]);
-    await addPokemonToInventory(pokemon);
+    const timestamp = new Date().toLocaleDateString();
+    const historyEntry = `Acquired on ${timestamp}`;
+    const pWithHistory = { 
+        ...pokemon, 
+        history: [historyEntry],
+        battlesWon: 0,
+        isFavorite: false
+    };
+    
+    setInventory(prev => [pWithHistory, ...prev]);
+    await addPokemonToInventory(pWithHistory);
     await addScore(10);
     playSound('success');
   };
@@ -240,6 +249,20 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
   };
 
+  const toggleFavorite = async (id: string) => {
+      let updatedPokemon: Pokemon | undefined;
+      setInventory(prev => prev.map(p => {
+          if (p.id === id) {
+              updatedPokemon = { ...p, isFavorite: !p.isFavorite };
+              return updatedPokemon;
+          }
+          return p;
+      }));
+      if (updatedPokemon) {
+          await addPokemonToInventory(updatedPokemon);
+      }
+  };
+
   const evolvePokemon = async (basePokemon: Pokemon): Promise<boolean> => {
     const copies = inventory.filter(p => p.apiId === basePokemon.apiId && !p.isArchived);
     if (copies.length < 3) return false;
@@ -262,6 +285,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     speed: Math.floor(evolvedForm.stats.speed * 1.1),
                 };
             }
+            
+            evolvedForm.history = [`Evolved from ${basePokemon.name} on ${new Date().toLocaleDateString()}`];
             await addPokemon(evolvedForm);
             playSound('evolve');
             return true;
@@ -311,7 +336,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await updateStardust(-finalPrice);
     }
 
-    await addPokemon(listing.pokemon);
+    const pokemon = { ...listing.pokemon, history: [`Bought from market on ${new Date().toLocaleDateString()}`] };
+    await addPokemon(pokemon);
     logTransaction('buy', listing.pokemon.name, finalPrice, listing.currency);
     setMarketListings(prev => prev.map(l => l.id === listingId ? { ...l, sold: true } : l));
   };
@@ -400,7 +426,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       // Update pokemon
-      await updatePokemon({ ...pokemon, heldItem: relicId });
+      const relicName = RELICS[relicId].name;
+      const history = [...(pokemon.history || []), `Equipped ${relicName} on ${new Date().toLocaleDateString()}`];
+      await updatePokemon({ ...pokemon, heldItem: relicId, history });
       playSound('click');
   };
 
@@ -429,7 +457,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!offer) return;
     
     await removePokemon(myPokemonId);
-    await addPokemon(offer.offeredPokemon);
+    
+    const incomingPokemon = {
+        ...offer.offeredPokemon,
+        history: [`Traded from ${offer.traderName} on ${new Date().toLocaleDateString()}`]
+    };
+    await addPokemon(incomingPokemon);
+    
     logTransaction('trade', `Traded for ${offer.offeredPokemon.name}`, 0, 'tokens');
     
     setSocial(prev => ({
@@ -530,7 +564,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     buyRelic,
     equipRelic,
     unequipRelic,
-    savePrompt
+    savePrompt,
+    toggleFavorite
   };
 
   return (

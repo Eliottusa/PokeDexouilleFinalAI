@@ -105,10 +105,10 @@
 - [x] Add prompt history for custom AI synthesis
 - [x] Introduce limited-time or rare event Pokémon
 
-#### Pokédex & Collection
-- [ ] Add filter by Pokémon type combinations (dual-types)
-- [ ] Implement search by ability / moves / stats
-- [ ] Add "favorite" marking system for Pokémon
-- [ ] Show historical capture/release log per Pokémon
-- [ ] Add achievement badges visible on Pokémon cards
-- [ ] Modify the ReadME so that it explains the whole use case and presents the app.
+#### Pokédex & Collection (Done)
+- [x] Add filter by Pokémon type combinations (dual-types)
+- [x] Implement search by ability / moves / stats
+- [x] Add "favorite" marking system for Pokémon
+- [x] Show historical capture/release log per Pokémon
+- [x] Add achievement badges visible on Pokémon cards
+- [x] Modify the ReadME so that it explains the whole use case and presents the app.

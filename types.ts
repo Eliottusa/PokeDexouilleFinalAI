@@ -38,6 +38,9 @@ export interface Pokemon {
   nickname?: string;
   suggestedNicknames?: string[];
   parents?: [string, string]; // Names of parents if fusion
+  isFavorite?: boolean;
+  battlesWon?: number;
+  history?: string[];
 }
 
 export interface Item {
@@ -176,6 +179,8 @@ export interface GameContextType extends GameState {
   unequipRelic: (pokemonId: string) => Promise<void>;
   // AI Tools
   savePrompt: (prompt: string) => Promise<void>;
+  // Favorites
+  toggleFavorite: (id: string) => Promise<void>;
 }
 
 export interface TurnLog {

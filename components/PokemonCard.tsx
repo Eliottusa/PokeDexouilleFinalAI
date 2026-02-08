@@ -1,17 +1,17 @@
 import React from 'react';
 import { Pokemon, Rarity } from '../types';
 import { TYPE_COLORS, REWARDS, STATUS_COLORS, RELICS } from '../constants';
-import { Zap, Shield, Heart, Activity, Cpu, Star, Archive, RotateCcw, Smile } from 'lucide-react';
+import { Zap, Shield, Heart, Activity, Cpu, Star, Archive, RotateCcw, Smile, Award, Sword } from 'lucide-react';
 import Button from './Button';
 import { useGame } from '../context/GameContext';
 
 interface PokemonCardProps {
   pokemon: Pokemon;
   readonly?: boolean;
+  onInfo?: () => void;
 }
 
 const StatBar: React.FC<{ label: string; value: number; color: string; icon: React.ElementType }> = ({ label, value, color, icon: Icon }) => {
-    // Cap visual bar at 150 for better distribution visibility, though values can go higher
     const percentage = Math.min(100, (value / 150) * 100);
     
     return (
@@ -35,8 +35,8 @@ const StatBar: React.FC<{ label: string; value: number; color: string; icon: Rea
     );
 };
 
-const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon, readonly = false }) => {
-  const { updateTokens, removePokemon, toggleArchive, unequipRelic } = useGame();
+const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon, readonly = false, onInfo }) => {
+  const { updateTokens, removePokemon, toggleArchive, unequipRelic, toggleFavorite } = useGame();
 
   const handleSell = async () => {
     let reward = REWARDS.SELL_COMMON;
@@ -72,27 +72,53 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon, readonly = false }) 
     [Rarity.MYTHICAL]: 'text-pink-400',
   }[pokemon.rarity];
 
+  // Badges Logic
+  const statsTotal = pokemon.stats.hp + pokemon.stats.attack + pokemon.stats.defense + pokemon.stats.speed;
+  const isTitan = statsTotal >= 450;
+  const isVeteran = (pokemon.battlesWon || 0) >= 10;
+  const isBonded = pokemon.friendship >= 200;
+
   return (
     <div className={`bg-white dark:bg-slate-800 rounded-xl overflow-hidden border-2 ${pokemon.isLegacy ? 'border-yellow-400 ring-2 ring-yellow-400/50' : rarityColor} transition-transform hover:-translate-y-1 duration-300 flex flex-col h-full shadow-sm`}>
       <div className="relative bg-slate-100 dark:bg-slate-900 p-4 flex justify-center items-center h-40 group">
-         {pokemon.isLegacy && (
-            <div className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 z-10 shadow-lg">
-                <Star size={10} fill="currentColor" /> LEGACY
-            </div>
-         )}
-         {pokemon.isAiGenerated && (
-            <div className={`absolute ${pokemon.isLegacy ? 'top-8' : 'top-2'} left-2 bg-pink-600 text-xs px-2 py-1 rounded text-white flex items-center gap-1 z-10`}>
-                <Cpu size={12} /> AI
-            </div>
-         )}
-         <div className="absolute top-2 right-2 text-xs font-bold uppercase tracking-wider px-2 py-1 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 z-10">
-            <span className={rarityText}>{pokemon.rarity}</span>
+         {/* Top Left Indicators */}
+         <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
+             {pokemon.isLegacy && (
+                <div className="bg-yellow-400 text-yellow-900 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 shadow-lg">
+                    <Star size={10} fill="currentColor" /> LEGACY
+                </div>
+             )}
+             {pokemon.isAiGenerated && (
+                <div className="bg-pink-600 text-white text-[10px] px-2 py-0.5 rounded flex items-center gap-1 shadow-lg">
+                    <Cpu size={10} /> AI
+                </div>
+             )}
+         </div>
+
+         {/* Badges Row */}
+         <div className="absolute bottom-2 left-2 flex gap-1 z-10">
+             {isTitan && <div title="Titan: High Stats" className="bg-slate-800 text-white p-1 rounded-full border border-slate-600"><Award size={10} className="text-orange-400" /></div>}
+             {isVeteran && <div title="Veteran: 10+ Wins" className="bg-slate-800 text-white p-1 rounded-full border border-slate-600"><Sword size={10} className="text-red-400" /></div>}
+             {isBonded && <div title="Bonded: High Friendship" className="bg-slate-800 text-white p-1 rounded-full border border-slate-600"><Heart size={10} className="text-pink-400" fill="currentColor" /></div>}
+         </div>
+
+         {/* Rarity & Favorite */}
+         <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10">
+            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 ${rarityText}`}>
+                {pokemon.rarity}
+            </span>
+            <button 
+                onClick={(e) => { e.stopPropagation(); toggleFavorite(pokemon.id); }}
+                className={`p-1 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm transition-transform hover:scale-110 ${pokemon.isFavorite ? 'text-red-500' : 'text-slate-300 dark:text-slate-600'}`}
+            >
+                <Heart size={14} fill={pokemon.isFavorite ? "currentColor" : "none"} />
+            </button>
          </div>
          
          {/* Held Item Indicator */}
          {pokemon.heldItem && RELICS[pokemon.heldItem] && (
              <div 
-                className="absolute bottom-2 left-2 z-10 bg-slate-800/80 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs flex items-center gap-1 border border-slate-600 cursor-help"
+                className="absolute bottom-2 right-2 z-10 bg-slate-800/80 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs flex items-center gap-1 border border-slate-600 cursor-help"
                 title={RELICS[pokemon.heldItem].name}
                 onClick={!readonly ? handleUnequip : undefined}
              >
@@ -170,13 +196,23 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon, readonly = false }) 
                 >
                     {pokemon.isArchived ? <RotateCcw size={14}/> : <Archive size={14}/>}
                 </Button>
-                <Button 
-                    variant="ghost" 
-                    onClick={(e) => { e.stopPropagation(); handleSell(); }}
-                    className="w-full text-xs py-1 h-7 border border-slate-300 dark:border-slate-700 hover:border-red-500 hover:bg-red-500/10 hover:text-red-500 flex items-center justify-center"
-                >
-                    Release
-                </Button>
+                {onInfo ? (
+                    <Button 
+                        variant="ghost" 
+                        onClick={(e) => { e.stopPropagation(); onInfo(); }} 
+                        className="w-full text-xs py-1 h-7 border border-slate-300 dark:border-slate-700 hover:border-blue-500 hover:bg-blue-500/10 hover:text-blue-500 flex items-center justify-center"
+                    >
+                        Info
+                    </Button>
+                ) : (
+                    <Button 
+                        variant="ghost" 
+                        onClick={(e) => { e.stopPropagation(); handleSell(); }}
+                        className="w-full text-xs py-1 h-7 border border-slate-300 dark:border-slate-700 hover:border-red-500 hover:bg-red-500/10 hover:text-red-500 flex items-center justify-center"
+                    >
+                        Release
+                    </Button>
+                )}
             </div>
         )}
       </div>

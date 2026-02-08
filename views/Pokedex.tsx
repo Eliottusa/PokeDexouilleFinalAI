@@ -2,24 +2,29 @@ import React, { useMemo, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import PokemonCard from '../components/PokemonCard';
 import Button from '../components/Button';
-import { Search, Filter, BarChart2, PieChart, ArrowUpDown, Dna, Archive, Shield, X, Check } from 'lucide-react';
-import { Rarity } from '../types';
-import { GENERATIONS, TOTAL_POKEMON_COUNT, RELICS } from '../constants';
+import { Search, Filter, BarChart2, PieChart, ArrowUpDown, Dna, Archive, Shield, X, Check, Heart, Info, Clock, Sword } from 'lucide-react';
+import { Rarity, Pokemon } from '../types';
+import { GENERATIONS, TOTAL_POKEMON_COUNT, RELICS, TYPE_COLORS } from '../constants';
 
 const Pokedex: React.FC = () => {
-  const { inventory, evolvePokemon, user, equipRelic } = useGame();
+  const { inventory, evolvePokemon, user, equipRelic, toggleFavorite } = useGame();
   const [searchTerm, setSearchTerm] = useState('');
   const [rarityFilter, setRarityFilter] = useState<string>('all');
   const [genFilter, setGenFilter] = useState<number | 'all' | 'ai'>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [favFilter, setFavFilter] = useState(false);
   const [sortMethod, setSortMethod] = useState<'date' | 'name' | 'id' | 'power'>('date');
+  
   const [showStats, setShowStats] = useState(false);
   const [evolveMode, setEvolveMode] = useState(false);
   const [equipMode, setEquipMode] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
+  
   const [processingAction, setProcessingAction] = useState<string | null>(null);
   
-  // Equip Modal State
+  // Modals
   const [selectedPokemonForEquip, setSelectedPokemonForEquip] = useState<string | null>(null);
+  const [viewingPokemon, setViewingPokemon] = useState<Pokemon | null>(null);
 
   // Group by API ID to find duplicates (Exclude archived)
   const evolutionCandidates = useMemo(() => {
@@ -38,9 +43,19 @@ const Pokedex: React.FC = () => {
       if (showArchive && !p.isArchived) return false;
       if (!showArchive && p.isArchived) return false;
 
-      const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.types.some(t => t.includes(searchTerm.toLowerCase()));
+      // Fav Filter
+      if (favFilter && !p.isFavorite) return false;
+
+      // Text Search
+      const searchLower = searchTerm.toLowerCase();
+      // Basic Search
+      const matchesSearch = p.name.toLowerCase().includes(searchLower) || p.types.some(t => t.includes(searchLower));
+      
       const matchesRarity = rarityFilter === 'all' || p.rarity === rarityFilter;
       
+      // Type Filter
+      const matchesType = typeFilter === 'all' || p.types.includes(typeFilter);
+
       let matchesGen = true;
       if (genFilter === 'ai') {
         matchesGen = p.apiId === 0;
@@ -56,9 +71,9 @@ const Pokedex: React.FC = () => {
           if (p.apiId === 0 || !evolutionCandidates.has(p.apiId)) return false;
       }
 
-      return matchesSearch && matchesRarity && matchesGen;
+      return matchesSearch && matchesRarity && matchesGen && matchesType;
     });
-  }, [inventory, searchTerm, rarityFilter, genFilter, evolveMode, evolutionCandidates, showArchive]);
+  }, [inventory, searchTerm, rarityFilter, genFilter, typeFilter, favFilter, evolveMode, evolutionCandidates, showArchive]);
 
   // Statistics Calculation
   const stats = useMemo(() => {
@@ -235,7 +250,7 @@ const Pokedex: React.FC = () => {
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input 
                   type="text" 
-                  placeholder="Search..." 
+                  placeholder="Search Name or Type..." 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg pl-9 pr-4 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none"
@@ -243,6 +258,14 @@ const Pokedex: React.FC = () => {
           </div>
 
           <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0 hide-scrollbar">
+            {/* Fav Filter */}
+            <button 
+                onClick={() => setFavFilter(!favFilter)}
+                className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${favFilter ? 'bg-red-500/20 border-red-500 text-red-500' : 'bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-500'}`}
+            >
+                <Heart size={14} fill={favFilter ? "currentColor" : "none"}/>
+            </button>
+
             {/* Sort Filter */}
             <div className="relative min-w-[140px]">
                 <select 
@@ -256,6 +279,21 @@ const Pokedex: React.FC = () => {
                     <option value="power">Combat Power</option>
                 </select>
                 <ArrowUpDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+            </div>
+
+            {/* Type Filter */}
+            <div className="relative min-w-[120px]">
+                <select 
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value)}
+                    className="w-full appearance-none bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none cursor-pointer capitalize"
+                >
+                    <option value="all">All Types</option>
+                    {Object.keys(TYPE_COLORS).filter(t => t !== 'unknown').map(t => (
+                        <option key={t} value={t}>{t}</option>
+                    ))}
+                </select>
+                <Filter size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             </div>
 
             {/* Rarity Filter */}
@@ -313,7 +351,10 @@ const Pokedex: React.FC = () => {
                 return (
                     <div key={pokemon.id} className="relative group cursor-pointer" onClick={() => equipMode && setSelectedPokemonForEquip(pokemon.id)}>
                         <div className={equipMode && selectedPokemonForEquip === pokemon.id ? 'ring-2 ring-purple-500 rounded-xl' : ''}>
-                          <PokemonCard pokemon={pokemon} />
+                          <PokemonCard 
+                            pokemon={pokemon} 
+                            onInfo={(!equipMode && !evolveMode) ? () => setViewingPokemon(pokemon) : undefined} 
+                          />
                         </div>
                         
                         {evolveMode && !showArchive && canEvolve && (
@@ -335,6 +376,85 @@ const Pokedex: React.FC = () => {
                 );
             })}
         </div>
+      )}
+
+      {/* Details Modal */}
+      {viewingPokemon && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-fade-in">
+              <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-2xl border border-slate-200 dark:border-slate-800 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+                  <div className="absolute top-0 left-0 w-full h-32 bg-slate-100 dark:bg-slate-800 z-0"></div>
+                  <button onClick={() => setViewingPokemon(null)} className="absolute top-4 right-4 z-20 p-2 bg-black/20 rounded-full text-white hover:bg-black/40"><X size={20}/></button>
+                  
+                  <div className="relative z-10 flex flex-col items-center pt-8 px-6 pb-6 overflow-y-auto">
+                      <img src={viewingPokemon.sprite} className="w-48 h-48 object-contain drop-shadow-2xl animate-bounce-slow" />
+                      
+                      <div className="text-center mb-6">
+                          <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-1">{viewingPokemon.nickname || viewingPokemon.name}</h2>
+                          {viewingPokemon.nickname && <p className="text-sm text-slate-500">({viewingPokemon.name})</p>}
+                          <div className="flex justify-center gap-2 mt-2">
+                              {viewingPokemon.types.map(t => (
+                                  <span key={t} className={`px-3 py-1 rounded-full text-xs font-bold uppercase text-white ${TYPE_COLORS[t] || 'bg-gray-500'}`}>
+                                      {t}
+                                  </span>
+                              ))}
+                          </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+                          {/* Stats */}
+                          <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                              <h3 className="font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2"><BarChart2 size={16}/> Combat Specs</h3>
+                              <div className="space-y-2">
+                                  <div className="flex justify-between text-sm"><span className="text-slate-500">HP</span> <span className="font-mono">{viewingPokemon.stats.hp}</span></div>
+                                  <div className="flex justify-between text-sm"><span className="text-slate-500">Attack</span> <span className="font-mono">{viewingPokemon.stats.attack}</span></div>
+                                  <div className="flex justify-between text-sm"><span className="text-slate-500">Defense</span> <span className="font-mono">{viewingPokemon.stats.defense}</span></div>
+                                  <div className="flex justify-between text-sm"><span className="text-slate-500">Speed</span> <span className="font-mono">{viewingPokemon.stats.speed}</span></div>
+                                  <div className="h-px bg-slate-200 dark:bg-slate-700 my-2"></div>
+                                  <div className="flex justify-between text-sm"><span className="text-slate-500">Total</span> <span className="font-bold text-accent">{viewingPokemon.stats.hp + viewingPokemon.stats.attack + viewingPokemon.stats.defense + viewingPokemon.stats.speed}</span></div>
+                              </div>
+                          </div>
+
+                          {/* Info */}
+                          <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                              <h3 className="font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2"><Info size={16}/> Data</h3>
+                              <div className="space-y-2 text-sm">
+                                  <div className="flex justify-between"><span className="text-slate-500">Species ID</span> <span className="font-mono">#{viewingPokemon.apiId}</span></div>
+                                  <div className="flex justify-between"><span className="text-slate-500">Rarity</span> <span className={`capitalize font-bold ${viewingPokemon.rarity === Rarity.LEGENDARY ? 'text-amber-500' : 'text-slate-700 dark:text-slate-300'}`}>{viewingPokemon.rarity}</span></div>
+                                  <div className="flex justify-between"><span className="text-slate-500">Personality</span> <span className="capitalize">{viewingPokemon.personality}</span></div>
+                                  <div className="flex justify-between"><span className="text-slate-500">Friendship</span> <span className="text-pink-500">{viewingPokemon.friendship}</span></div>
+                                  <div className="flex justify-between"><span className="text-slate-500">Battles Won</span> <span className="text-green-500 font-bold">{viewingPokemon.battlesWon || 0}</span></div>
+                              </div>
+                          </div>
+                      </div>
+
+                      {/* History Log */}
+                      <div className="w-full mt-6">
+                          <h3 className="font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2"><Clock size={16}/> Timeline</h3>
+                          <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 max-h-48 overflow-y-auto">
+                              {viewingPokemon.history && viewingPokemon.history.length > 0 ? (
+                                  <ul className="space-y-3">
+                                      {[...viewingPokemon.history].reverse().map((entry, i) => (
+                                          <li key={i} className="flex gap-3 text-xs text-slate-600 dark:text-slate-400">
+                                              <div className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0"></div>
+                                              {entry}
+                                          </li>
+                                      ))}
+                                  </ul>
+                              ) : (
+                                  <p className="text-xs text-slate-500">No recorded history.</p>
+                              )}
+                          </div>
+                      </div>
+                      
+                      <div className="w-full mt-6">
+                          <Button onClick={() => toggleFavorite(viewingPokemon.id)} variant="ghost" className="w-full border border-slate-200 dark:border-slate-700">
+                              <Heart className={viewingPokemon.isFavorite ? "fill-red-500 text-red-500" : "text-slate-400"} size={20} />
+                              <span className="ml-2">{viewingPokemon.isFavorite ? 'Unfavorite' : 'Add to Favorites'}</span>
+                          </Button>
+                      </div>
+                  </div>
+              </div>
+          </div>
       )}
 
       {/* Equip Modal Overlay */}
