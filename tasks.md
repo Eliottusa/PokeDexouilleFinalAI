@@ -134,3 +134,7 @@
 - [x] Add animated transitions for Pokedex sorting/filtering (CSS Animations)
 - [x] Implement sound effects for marketplace transactions (Sound Service Integration)
 - [x] Adapt text color to adapt to light/dark mode (Tailwind Dark Mode)
+
+#### LAST COMMIT
+
+- [x] Adapt ReadME so that it reflects all of the capabilities of the App.
