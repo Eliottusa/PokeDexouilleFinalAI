@@ -3,7 +3,7 @@ import { useGame } from '../context/GameContext';
 import { Pokemon, TurnLog, StatusCondition } from '../types';
 import { fetchRandomPokemon } from '../services/pokeApi';
 import { calculateDamage, getEnemyAction, processStatusEffect } from '../services/battleLogic';
-import { TYPE_COLORS, STATUS_COLORS, REWARDS, BATTLE_DIFFICULTIES, ITEMS } from '../constants';
+import { TYPE_COLORS, STATUS_COLORS, REWARDS, BATTLE_DIFFICULTIES, ITEMS, RELICS } from '../constants';
 import Button from '../components/Button';
 import PokemonCard from '../components/PokemonCard';
 import { Sword, Trophy, Skull, Zap, Briefcase, X } from 'lucide-react';
@@ -64,7 +64,7 @@ const Battle: React.FC = () => {
   const startBattle = (pokemon: Pokemon) => {
     setPlayerMon(pokemon);
     setPlayerHp(pokemon.stats.hp);
-    setPlayerStatus(pokemon.status || 'none'); // Inherit status? Usually fresh battle resets status unless persistent RPG. Let's make it persistent later, for now fresh.
+    setPlayerStatus(pokemon.status || 'none'); 
     
     setEnemyHp(enemyMon!.stats.hp);
     setEnemyStatus('none');
@@ -76,7 +76,13 @@ const Battle: React.FC = () => {
     if (difficulty.id === 'hard' || social.rivalBattle) playAudio('battle-start-hard');
     else playAudio('battle-start');
     
-    if (enemyMon!.stats.speed > pokemon.stats.speed) {
+    // Quick Claw Logic
+    let pSpeed = pokemon.stats.speed;
+    let eSpeed = enemyMon!.stats.speed;
+    
+    if (pokemon.heldItem === 'quick_claw') pSpeed *= 1.1;
+    
+    if (eSpeed > pSpeed) {
         setIsPlayerTurn(false);
         setTimeout(executeEnemyTurn, 1000);
     } else {
@@ -84,18 +90,28 @@ const Battle: React.FC = () => {
     }
   };
 
-  const applyStatusDamage = async (isPlayer: boolean) => {
-     // End of Turn Status Effects
+  const applyTurnEndEffects = async (isPlayer: boolean) => {
      const mon = isPlayer ? { ...playerMon!, stats: { ...playerMon!.stats, hp: playerHp }, status: playerStatus } : { ...enemyMon!, stats: { ...enemyMon!.stats, hp: enemyHp }, status: enemyStatus };
-     const { damage, message } = processStatusEffect(mon);
      
+     // 1. Status Damage
+     const { damage, message } = processStatusEffect(mon);
      if (damage > 0 || message) {
          if (message) setCombatLog(prev => [{ message, isPlayer }, ...prev]);
          if (damage > 0) {
              if (isPlayer) setPlayerHp(prev => Math.max(0, prev - damage));
              else setEnemyHp(prev => Math.max(0, prev - damage));
          }
-         await new Promise(r => setTimeout(r, 800));
+         await new Promise(r => setTimeout(r, 600));
+     }
+
+     // 2. Relic Healing (Leftovers)
+     if (mon.heldItem === 'leftovers') {
+         const healAmount = Math.floor(mon.stats.hp * 0.06);
+         if (isPlayer) setPlayerHp(prev => Math.min(playerMon!.stats.hp, prev + healAmount));
+         else setEnemyHp(prev => Math.min(enemyMon!.stats.hp, prev + healAmount));
+         
+         setCombatLog(prev => [{ message: `${mon.name} restored HP with Leftovers!`, isPlayer }, ...prev]);
+         await new Promise(r => setTimeout(r, 600));
      }
   };
 
@@ -134,14 +150,13 @@ const Battle: React.FC = () => {
         setTimeout(executeEnemyTurn, 1000);
         return;
     }
-    if (message && canMove) setCombatLog(prev => [{ message, isPlayer: true }, ...prev]); // e.g. thawed
+    if (message && canMove) setCombatLog(prev => [{ message, isPlayer: true }, ...prev]); 
 
     playAudio('attack');
 
     // Player Action
     if (action === 'heal') {
-        // Innate heal ability (removed/nerfed if using items?) - Let's keep for strategy
-        const healAmount = Math.floor(playerMon.stats.hp * 0.3); // Nerfed to 30%
+        const healAmount = Math.floor(playerMon.stats.hp * 0.3); 
         setPlayerHp(prev => Math.min(playerMon.stats.hp, prev + healAmount));
         setCombatLog(prev => [{ message: `${playerMon.name} focused... Healed ${healAmount} HP!`, isPlayer: true }, ...prev]);
     } else {
@@ -152,8 +167,6 @@ const Battle: React.FC = () => {
         } else {
             setEnemyHp(prev => Math.max(0, prev - damage));
             
-            // Chance to apply status if special move?
-            // Simple logic: 10% chance to burn with fire, etc.
             let statusMsg = '';
             if (moveType === 'fire' && enemyStatus === 'none' && Math.random() < 0.2) {
                 setEnemyStatus('burn');
@@ -175,7 +188,7 @@ const Battle: React.FC = () => {
         }
     }
     
-    await applyStatusDamage(true); // Player takes burn damage etc at end of THEIR turn usually? Or end of round. Let's do end of action for simplicity.
+    await applyTurnEndEffects(true);
 
     setTimeout(() => {
        setIsPlayerTurn(false);
@@ -185,7 +198,7 @@ const Battle: React.FC = () => {
 
   const executeEnemyTurn = async () => {
     if (!playerMon || !enemyMon) return;
-    if (enemyHp <= 0) return; // Dead enemy can't attack
+    if (enemyHp <= 0) return; 
 
     const { canMove, message } = processStatusEffect({ ...enemyMon, status: enemyStatus });
     if (!canMove) {
@@ -204,17 +217,15 @@ const Battle: React.FC = () => {
     if (isMiss) {
         setCombatLog(prev => [{ message: `${enemyMon!.name} missed!`, isPlayer: false }, ...prev]);
     } else {
-        // Friendship Survival Mechanic
         let finalDamage = damage;
         let survived = false;
-        if (playerHp - damage <= 0 && playerMon.friendship > 50 && Math.random() < (playerMon.friendship / 500)) { // Max 50% chance at 250 friendship
+        if (playerHp - damage <= 0 && playerMon.friendship > 50 && Math.random() < (playerMon.friendship / 500)) { 
              finalDamage = playerHp - 1;
              survived = true;
         }
 
         setPlayerHp(prev => Math.max(0, prev - finalDamage));
         
-        // Enemy Status Application
         let statusMsg = '';
         if (moveType && ['fire', 'electric', 'poison', 'ice'].includes(moveType) && playerStatus === 'none' && Math.random() < 0.2) {
              if (moveType === 'fire') { setPlayerStatus('burn'); statusMsg = ' You were burned!'; }
@@ -231,7 +242,7 @@ const Battle: React.FC = () => {
         setCombatLog(prev => [{ message: logMsg, isPlayer: false }, ...prev]);
     }
     
-    await applyStatusDamage(false);
+    await applyTurnEndEffects(false);
 
     setTimeout(() => {
         setIsPlayerTurn(true);
@@ -263,7 +274,6 @@ const Battle: React.FC = () => {
     await updateTokens(Math.floor(REWARDS.BATTLE_WIN_TOKENS * mult));
     await gainXp(Math.floor(REWARDS.BATTLE_WIN_XP * mult));
     
-    // Friendship Gain
     if (playerMon) {
         const newFriendship = Math.min(255, (playerMon.friendship || 0) + 2);
         await updatePokemon({ ...playerMon, friendship: newFriendship });
@@ -287,6 +297,8 @@ const Battle: React.FC = () => {
         clearRivalBattle();
     }
   };
+
+  // ... (Difficulty, Selection, Result Views - No changes needed)
 
   // 1. Difficulty Phase
   if (phase === 'difficulty') {
@@ -423,6 +435,13 @@ const Battle: React.FC = () => {
                     {playerStatus !== 'none' && (
                         <div className={`text-xs font-bold uppercase ${STATUS_COLORS[playerStatus]} mt-1`}>
                             {playerStatus}
+                        </div>
+                    )}
+
+                    {/* Held Item */}
+                    {playerMon?.heldItem && RELICS[playerMon.heldItem] && (
+                        <div className="absolute top-2 left-2 bg-slate-900/50 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1 border border-slate-700">
+                             {RELICS[playerMon.heldItem].icon} {RELICS[playerMon.heldItem].name}
                         </div>
                     )}
 

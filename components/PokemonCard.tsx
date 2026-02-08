@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pokemon, Rarity } from '../types';
-import { TYPE_COLORS, REWARDS, STATUS_COLORS } from '../constants';
+import { TYPE_COLORS, REWARDS, STATUS_COLORS, RELICS } from '../constants';
 import { Zap, Shield, Heart, Activity, Cpu, Star, Archive, RotateCcw, Smile } from 'lucide-react';
 import Button from './Button';
 import { useGame } from '../context/GameContext';
@@ -36,7 +36,7 @@ const StatBar: React.FC<{ label: string; value: number; color: string; icon: Rea
 };
 
 const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon, readonly = false }) => {
-  const { updateTokens, removePokemon, toggleArchive } = useGame();
+  const { updateTokens, removePokemon, toggleArchive, unequipRelic } = useGame();
 
   const handleSell = async () => {
     let reward = REWARDS.SELL_COMMON;
@@ -49,6 +49,11 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon, readonly = false }) 
       await updateTokens(reward);
       await removePokemon(pokemon.id);
     }
+  };
+
+  const handleUnequip = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      await unequipRelic(pokemon.id);
   };
 
   const rarityColor = {
@@ -83,6 +88,18 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon, readonly = false }) 
          <div className="absolute top-2 right-2 text-xs font-bold uppercase tracking-wider px-2 py-1 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 z-10">
             <span className={rarityText}>{pokemon.rarity}</span>
          </div>
+         
+         {/* Held Item Indicator */}
+         {pokemon.heldItem && RELICS[pokemon.heldItem] && (
+             <div 
+                className="absolute bottom-2 left-2 z-10 bg-slate-800/80 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs flex items-center gap-1 border border-slate-600 cursor-help"
+                title={RELICS[pokemon.heldItem].name}
+                onClick={!readonly ? handleUnequip : undefined}
+             >
+                 <span>{RELICS[pokemon.heldItem].icon}</span>
+                 {!readonly && <span className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">×</span>}
+             </div>
+         )}
          
          <img 
             src={pokemon.sprite} 
@@ -138,7 +155,7 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon, readonly = false }) 
             <div className="mt-auto pt-2 grid grid-cols-2 gap-2">
                  <Button 
                     variant="ghost" 
-                    onClick={() => toggleArchive(pokemon.id)} 
+                    onClick={(e) => { e.stopPropagation(); toggleArchive(pokemon.id); }} 
                     className="w-full text-xs py-1 h-7 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 flex items-center justify-center"
                     title={pokemon.isArchived ? "Unarchive" : "Archive"}
                 >
@@ -146,7 +163,7 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon, readonly = false }) 
                 </Button>
                 <Button 
                     variant="ghost" 
-                    onClick={handleSell} 
+                    onClick={(e) => { e.stopPropagation(); handleSell(); }}
                     className="w-full text-xs py-1 h-7 border border-slate-300 dark:border-slate-700 hover:border-red-500 hover:bg-red-500/10 hover:text-red-500 flex items-center justify-center"
                 >
                     Release

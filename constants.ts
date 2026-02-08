@@ -1,4 +1,4 @@
-import { Rarity, GameEvent, Item, Personality } from './types';
+import { Rarity, GameEvent, Item, Personality, Relic } from './types';
 
 export const COSTS = {
   SUMMON_STANDARD: 10,
@@ -30,7 +30,9 @@ export const INITIAL_USER_STATE = {
   level: 1,
   title: 'Rookie',
   prestige: 0,
-  items: { 'potion': 3 } // Start with 3 potions
+  items: { 'potion': 3 },
+  relics: {},
+  transactions: []
 };
 
 export const LEVEL_CAP = 50;
@@ -55,6 +57,14 @@ export const ITEMS: Record<string, Item> = {
   'super_potion': { id: 'super_potion', name: 'Super Potion', description: 'Restores 50 HP.', price: 150, effect: 'heal', value: 50, icon: '🍷' },
   'hyper_potion': { id: 'hyper_potion', name: 'Hyper Potion', description: 'Restores 200 HP.', price: 400, effect: 'heal', value: 200, icon: '✨' },
   'full_heal': { id: 'full_heal', name: 'Full Heal', description: 'Cures all status conditions.', price: 100, effect: 'status_heal', value: 0, icon: '💊' },
+};
+
+export const RELICS: Record<string, Relic> = {
+  'muscle_band': { id: 'muscle_band', name: 'Muscle Band', description: 'Boosts Attack by 10%.', price: 200, currency: 'stardust', effect: 'stat_boost', value: 0.1, stat: 'attack', icon: '💪' },
+  'leftovers': { id: 'leftovers', name: 'Leftovers', description: 'Restores HP at end of turn.', price: 500, currency: 'stardust', effect: 'heal_turn', value: 0.06, icon: '🍎' },
+  'scope_lens': { id: 'scope_lens', name: 'Scope Lens', description: 'Increases critical hit ratio.', price: 300, currency: 'stardust', effect: 'crit_boost', value: 0.1, icon: '🔭' },
+  'quick_claw': { id: 'quick_claw', name: 'Quick Claw', description: 'Boosts Speed by 10%.', price: 200, currency: 'stardust', effect: 'stat_boost', value: 0.1, stat: 'speed', icon: '⚡' },
+  'iron_vest': { id: 'iron_vest', name: 'Iron Vest', description: 'Boosts Defense by 10%.', price: 200, currency: 'stardust', effect: 'stat_boost', value: 0.1, stat: 'defense', icon: '🛡️' },
 };
 
 export const TYPE_COLORS: Record<string, string> = {

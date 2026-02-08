@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { GameContextType, GameState, Pokemon, UserProfile, ViewState, MarketListing, Season, SEASONS, SocialState, RivalChallenge, GameEvent } from '../types';
+import { GameContextType, GameState, Pokemon, UserProfile, ViewState, MarketListing, Season, SEASONS, SocialState, RivalChallenge, GameEvent, Transaction } from '../types';
 import { getUserProfile, getInventory, saveUserProfile, addPokemonToInventory, removePokemonFromInventory } from '../services/db';
-import { INITIAL_USER_STATE, COSTS, TRAINER_TITLES, XP_PER_LEVEL, SEASONAL_EVENTS, ITEMS } from '../constants';
+import { INITIAL_USER_STATE, COSTS, TRAINER_TITLES, XP_PER_LEVEL, SEASONAL_EVENTS, ITEMS, RELICS } from '../constants';
 import { generateMarketListings } from '../services/marketLogic';
 import { generateMockLeaderboard, generateTradeOffers, initialGuildState } from '../services/socialService';
 import { fetchEvolution, fetchRandomPokemon } from '../services/pokeApi';
@@ -36,6 +36,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [season, setSeason] = useState<Season>('Spring');
   const [activeEvent, setActiveEvent] = useState<GameEvent | undefined>(undefined);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [marketTrend, setMarketTrend] = useState<number>(1.0);
   
   // Social State
   const [social, setSocial] = useState<SocialState>({
@@ -64,6 +65,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (events && events.length > 0) {
         setActiveEvent(events[0]);
       }
+      
+      // Randomize market trend on load
+      setMarketTrend(0.8 + Math.random() * 0.4);
 
       const initialListings = await generateMarketListings(3);
       setMarketListings(initialListings);
@@ -102,6 +106,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const getMultipliers = (currentUser: UserProfile) => {
     const prestigeMult = 1 + (currentUser.prestige * 0.1);
     return { prestigeMult };
+  };
+
+  const logTransaction = (type: Transaction['type'], itemName: string, amount: number, currency: Transaction['currency']) => {
+      setUser(prev => {
+          const newTx: Transaction = {
+              id: `tx-${Date.now()}`,
+              type,
+              itemName,
+              amount,
+              currency,
+              timestamp: Date.now()
+          };
+          // Keep last 50 transactions
+          const updatedTx = [newTx, ...(prev.transactions || [])].slice(0, 50);
+          return { ...prev, transactions: updatedTx };
+      });
   };
 
   const updateTokens = async (amount: number) => {
@@ -255,6 +275,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
     }
     await updateTokens(-COSTS.MARKET_REFRESH);
+    
+    // Update trend
+    setMarketTrend(0.8 + Math.random() * 0.4);
+
     const newListings = await generateMarketListings(3);
     setMarketListings(newListings);
     playSound('click');
@@ -264,15 +288,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const listing = marketListings.find(l => l.id === listingId);
     if (!listing || listing.sold) return;
 
+    // Apply market trend to price
+    const finalPrice = Math.floor(listing.price * marketTrend);
+
     if (listing.currency === 'tokens') {
-        if (user.tokens < listing.price) { playSound('error'); return; }
-        await updateTokens(-listing.price);
+        if (user.tokens < finalPrice) { playSound('error'); return; }
+        await updateTokens(-finalPrice);
     } else {
-        if (user.stardust < listing.price) { playSound('error'); return; }
-        await updateStardust(-listing.price);
+        if (user.stardust < finalPrice) { playSound('error'); return; }
+        await updateStardust(-finalPrice);
     }
 
     await addPokemon(listing.pokemon);
+    logTransaction('buy', listing.pokemon.name, finalPrice, listing.currency);
     setMarketListings(prev => prev.map(l => l.id === listingId ? { ...l, sold: true } : l));
   };
 
@@ -280,7 +308,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const buyItem = async (itemId: string, count: number = 1) => {
       const item = ITEMS[itemId];
       if (!item) return;
-      const totalCost = item.price * count;
+      const totalCost = Math.floor(item.price * count * marketTrend);
       
       if (user.tokens < totalCost) {
           playSound('error');
@@ -295,6 +323,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           saveUserProfile(newUser).catch(console.error);
           return newUser;
       });
+      logTransaction('buy', `${item.name} x${count}`, totalCost, 'tokens');
       playSound('success');
   };
 
@@ -305,7 +334,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return false;
       }
 
-      // Logic handled in view, here we just deduct
       setUser(prev => {
           const currentCount = prev.items?.[itemId] || 0;
           if (currentCount <= 0) return prev;
@@ -318,12 +346,79 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return true;
   };
 
+  // Relic Logic
+  const buyRelic = async (relicId: string) => {
+      const relic = RELICS[relicId];
+      if (!relic) return;
+      const price = Math.floor(relic.price * marketTrend);
+
+      if (relic.currency === 'tokens') {
+          if (user.tokens < price) { playSound('error'); return; }
+          await updateTokens(-price);
+      } else {
+          if (user.stardust < price) { playSound('error'); return; }
+          await updateStardust(-price);
+      }
+
+      setUser(prev => {
+          const currentCount = prev.relics?.[relicId] || 0;
+          const newRelics = { ...prev.relics, [relicId]: currentCount + 1 };
+          const newUser = { ...prev, relics: newRelics };
+          saveUserProfile(newUser).catch(console.error);
+          return newUser;
+      });
+      logTransaction('buy', relic.name, price, relic.currency);
+      playSound('success');
+  };
+
+  const equipRelic = async (pokemonId: string, relicId: string) => {
+      const pokemon = inventory.find(p => p.id === pokemonId);
+      if (!pokemon || (user.relics?.[relicId] || 0) <= 0) { playSound('error'); return; }
+
+      // If already holding something, unequip it first
+      if (pokemon.heldItem) {
+         await unequipRelic(pokemonId);
+      }
+
+      // Decrement inventory
+      setUser(prev => {
+          const currentCount = prev.relics?.[relicId] || 0;
+          const newRelics = { ...prev.relics, [relicId]: Math.max(0, currentCount - 1) };
+          return { ...prev, relics: newRelics };
+      });
+
+      // Update pokemon
+      await updatePokemon({ ...pokemon, heldItem: relicId });
+      playSound('click');
+  };
+
+  const unequipRelic = async (pokemonId: string) => {
+      const pokemon = inventory.find(p => p.id === pokemonId);
+      if (!pokemon || !pokemon.heldItem) return;
+      
+      const itemToReturn = pokemon.heldItem;
+
+      // Update Pokemon
+      await updatePokemon({ ...pokemon, heldItem: undefined });
+
+      // Return to inventory
+      setUser(prev => {
+          const currentCount = prev.relics?.[itemToReturn] || 0;
+          const newRelics = { ...prev.relics, [itemToReturn]: currentCount + 1 };
+          const newUser = { ...prev, relics: newRelics };
+          saveUserProfile(newUser).catch(console.error);
+          return newUser;
+      });
+      playSound('click');
+  };
+
   const acceptTrade = async (offerId: string, myPokemonId: string) => {
     const offer = social.trades.find(t => t.id === offerId);
     if (!offer) return;
     
     await removePokemon(myPokemonId);
     await addPokemon(offer.offeredPokemon);
+    logTransaction('trade', `Traded for ${offer.offeredPokemon.name}`, 0, 'tokens');
     
     setSocial(prev => ({
         ...prev,
@@ -397,6 +492,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     social,
     activeEvent,
     theme,
+    marketTrend,
     setView,
     addPokemon,
     updatePokemon,
@@ -418,7 +514,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     toggleArchive,
     toggleTheme,
     buyItem,
-    useItem
+    useItem,
+    buyRelic,
+    equipRelic,
+    unequipRelic
   };
 
   return (

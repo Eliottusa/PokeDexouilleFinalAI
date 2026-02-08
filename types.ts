@@ -34,6 +34,7 @@ export interface Pokemon {
   status: StatusCondition;
   personality: Personality;
   friendship: number; // 0-255
+  heldItem?: string; // Relic ID
 }
 
 export interface Item {
@@ -46,6 +47,27 @@ export interface Item {
   icon: string;
 }
 
+export interface Relic {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  currency: 'tokens' | 'stardust';
+  effect: 'stat_boost' | 'heal_turn' | 'crit_boost' | 'speed_boost' | 'defense_boost';
+  value: number; // Percentage (e.g. 0.1 for 10%)
+  stat?: 'attack' | 'defense' | 'speed' | 'hp';
+  icon: string;
+}
+
+export interface Transaction {
+  id: string;
+  type: 'buy' | 'sell' | 'trade' | 'fee';
+  itemName: string;
+  amount: number;
+  currency: 'tokens' | 'stardust';
+  timestamp: number;
+}
+
 export interface UserProfile {
   tokens: number;
   stardust: number;
@@ -56,6 +78,8 @@ export interface UserProfile {
   title: string;
   prestige: number;
   items: Record<string, number>; // itemId -> count
+  relics: Record<string, number>; // relicId -> count
+  transactions: Transaction[];
 }
 
 export type ViewState = 'dashboard' | 'generator' | 'pokedex' | 'battle' | 'marketplace' | 'social';
@@ -78,6 +102,7 @@ export interface GameState {
   social: SocialState;
   activeEvent?: GameEvent;
   theme: 'dark' | 'light';
+  marketTrend: number; // 0.8 to 1.2 price multiplier
 }
 
 export interface SocialState {
@@ -139,9 +164,12 @@ export interface GameContextType extends GameState {
   prestigeUser: () => Promise<void>;
   toggleArchive: (id: string) => Promise<void>;
   toggleTheme: () => void;
-  // Items
+  // Items & Relics
   buyItem: (itemId: string, count?: number) => Promise<void>;
   useItem: (itemId: string, pokemonId: string) => Promise<boolean>;
+  buyRelic: (relicId: string) => Promise<void>;
+  equipRelic: (pokemonId: string, relicId: string) => Promise<void>;
+  unequipRelic: (pokemonId: string) => Promise<void>;
 }
 
 export interface TurnLog {

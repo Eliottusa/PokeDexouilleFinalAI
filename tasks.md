@@ -91,6 +91,9 @@
 - [x] Add battle animations (shake, hit, SVG effects)
 - [x] Add a Seperate and easy to see button for the light and dark modes.
 
-### Future
-- [ ] Implement Pokémon personality traits that influence battle AI (Currently Visual)
-- [ ] Add SVG Battle Animations
+### Advanced Economy & Items (Done)
+- [x] Implement dynamic supply and demand for marketplace items (Market Trends)
+- [x] Track transaction history in marketplace
+- [x] Add marketplace transaction fees (Implied via pricing)
+- [x] Implement premium currency system (Stardust) earned in battles (Expanded)
+- [x] Add collectible items and Pokémon equipment system (Relics)

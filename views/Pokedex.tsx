@@ -2,20 +2,24 @@ import React, { useMemo, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import PokemonCard from '../components/PokemonCard';
 import Button from '../components/Button';
-import { Search, Filter, BarChart2, PieChart, ArrowUpDown, Dna, Archive } from 'lucide-react';
+import { Search, Filter, BarChart2, PieChart, ArrowUpDown, Dna, Archive, Shield, X, Check } from 'lucide-react';
 import { Rarity } from '../types';
-import { GENERATIONS, TOTAL_POKEMON_COUNT } from '../constants';
+import { GENERATIONS, TOTAL_POKEMON_COUNT, RELICS } from '../constants';
 
 const Pokedex: React.FC = () => {
-  const { inventory, evolvePokemon } = useGame();
+  const { inventory, evolvePokemon, user, equipRelic } = useGame();
   const [searchTerm, setSearchTerm] = useState('');
   const [rarityFilter, setRarityFilter] = useState<string>('all');
   const [genFilter, setGenFilter] = useState<number | 'all' | 'ai'>('all');
   const [sortMethod, setSortMethod] = useState<'date' | 'name' | 'id' | 'power'>('date');
   const [showStats, setShowStats] = useState(false);
   const [evolveMode, setEvolveMode] = useState(false);
+  const [equipMode, setEquipMode] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
-  const [processingEvolution, setProcessingEvolution] = useState<string | null>(null);
+  const [processingAction, setProcessingAction] = useState<string | null>(null);
+  
+  // Equip Modal State
+  const [selectedPokemonForEquip, setSelectedPokemonForEquip] = useState<string | null>(null);
 
   // Group by API ID to find duplicates (Exclude archived)
   const evolutionCandidates = useMemo(() => {
@@ -96,16 +100,22 @@ const Pokedex: React.FC = () => {
 
   const handleEvolve = async (pokemon: any) => {
       if (!confirm(`Evolve ${pokemon.name}? This will consume 3 copies to attempt to find the next evolution form.`)) return;
-      setProcessingEvolution(pokemon.id);
+      setProcessingAction(pokemon.id);
       const success = await evolvePokemon(pokemon);
       if (!success) {
           alert("Evolution failed! Either no evolution exists or a network error occurred.");
       }
-      setProcessingEvolution(null);
+      setProcessingAction(null);
+  };
+
+  const handleEquip = async (relicId: string) => {
+      if (!selectedPokemonForEquip) return;
+      await equipRelic(selectedPokemonForEquip, relicId);
+      setSelectedPokemonForEquip(null);
   };
 
   return (
-    <div className="space-y-6 animate-fade-in h-full pb-20">
+    <div className="space-y-6 animate-fade-in h-full pb-20 relative">
       
       {/* Header & Stats Toggle */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -115,20 +125,29 @@ const Pokedex: React.FC = () => {
         </div>
         <div className="flex gap-2 flex-wrap">
             <button 
-                onClick={() => { setShowArchive(!showArchive); setEvolveMode(false); }} 
+                onClick={() => { setShowArchive(!showArchive); setEvolveMode(false); setEquipMode(false); }} 
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors ${showArchive ? 'bg-indigo-500/20 border-indigo-500 text-indigo-500' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
             >
                 <Archive size={16} />
                 <span className="text-sm font-medium">{showArchive ? 'Back to Dex' : 'Vault'}</span>
             </button>
             {!showArchive && (
+                <>
                 <button 
-                onClick={() => setEvolveMode(!evolveMode)} 
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors ${evolveMode ? 'bg-secondary/20 border-secondary text-secondary' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                    onClick={() => { setEvolveMode(!evolveMode); setEquipMode(false); }} 
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors ${evolveMode ? 'bg-secondary/20 border-secondary text-secondary' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
                 >
-                <Dna size={16} />
-                <span className="text-sm font-medium">Evolution</span>
+                    <Dna size={16} />
+                    <span className="text-sm font-medium">Evolution</span>
                 </button>
+                <button 
+                    onClick={() => { setEquipMode(!equipMode); setEvolveMode(false); }} 
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors ${equipMode ? 'bg-purple-500/20 border-purple-500 text-purple-500' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                >
+                    <Shield size={16} />
+                    <span className="text-sm font-medium">Equip</span>
+                </button>
+                </>
             )}
             <button 
             onClick={() => setShowStats(!showStats)} 
@@ -146,6 +165,16 @@ const Pokedex: React.FC = () => {
               <div>
                   <span className="font-bold">Evolution Protocol Active</span>
                   <p className="opacity-80">Pokémon with 3+ copies are highlighted. Click "Evolve" on a card to merge 3 copies into the next evolution stage.</p>
+              </div>
+          </div>
+      )}
+
+      {equipMode && !showArchive && (
+          <div className="bg-purple-500/10 border border-purple-500/50 p-4 rounded-xl text-purple-500 text-sm flex items-center gap-3">
+              <Shield size={20} />
+              <div>
+                  <span className="font-bold">Equipment Protocol Active</span>
+                  <p className="opacity-80">Click on a Pokémon to equip a Relic from your inventory.</p>
               </div>
           </div>
       )}
@@ -282,13 +311,16 @@ const Pokedex: React.FC = () => {
             {sortedInventory.map(pokemon => {
                 const canEvolve = evolutionCandidates.has(pokemon.apiId);
                 return (
-                    <div key={pokemon.id} className="relative group">
-                        <PokemonCard pokemon={pokemon} />
+                    <div key={pokemon.id} className="relative group cursor-pointer" onClick={() => equipMode && setSelectedPokemonForEquip(pokemon.id)}>
+                        <div className={equipMode && selectedPokemonForEquip === pokemon.id ? 'ring-2 ring-purple-500 rounded-xl' : ''}>
+                          <PokemonCard pokemon={pokemon} />
+                        </div>
+                        
                         {evolveMode && !showArchive && canEvolve && (
                             <div className="absolute inset-0 bg-slate-900/80 rounded-xl flex items-center justify-center z-20 backdrop-blur-sm">
                                 <Button 
-                                    onClick={() => handleEvolve(pokemon)}
-                                    isLoading={processingEvolution === pokemon.id}
+                                    onClick={(e) => { e.stopPropagation(); handleEvolve(pokemon); }}
+                                    isLoading={processingAction === pokemon.id}
                                     className="shadow-lg shadow-secondary/50 border border-secondary"
                                     variant="secondary"
                                 >
@@ -302,6 +334,45 @@ const Pokedex: React.FC = () => {
                     </div>
                 );
             })}
+        </div>
+      )}
+
+      {/* Equip Modal Overlay */}
+      {selectedPokemonForEquip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+             <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-200 dark:border-slate-700 shadow-2xl relative">
+                  <button onClick={() => setSelectedPokemonForEquip(null)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white"><X size={24}/></button>
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                      <Shield className="text-purple-500"/> Equip Relic
+                  </h3>
+                  
+                  <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                      {Object.entries(user.relics || {}).filter(([_, count]) => count > 0).map(([relicId, count]) => {
+                          const relic = RELICS[relicId];
+                          return (
+                              <button 
+                                key={relicId}
+                                onClick={() => handleEquip(relicId)}
+                                className="w-full flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-purple-500 transition-colors text-left group"
+                              >
+                                  <div className="text-2xl">{relic.icon}</div>
+                                  <div className="flex-1">
+                                      <div className="font-bold text-slate-800 dark:text-white">{relic.name}</div>
+                                      <div className="text-xs text-slate-500">{relic.description}</div>
+                                  </div>
+                                  <div className="text-xs font-mono text-slate-400">x{count}</div>
+                                  <div className="opacity-0 group-hover:opacity-100 text-purple-500"><Check size={20}/></div>
+                              </button>
+                          );
+                      })}
+                      {Object.values(user.relics || {}).every(c => c <= 0) && (
+                          <div className="text-center py-8 text-slate-500">
+                              <p className="mb-2">No relics in inventory.</p>
+                              <Button variant="ghost" onClick={() => { setSelectedPokemonForEquip(null); }} >Go to Market</Button>
+                          </div>
+                      )}
+                  </div>
+             </div>
         </div>
       )}
     </div>

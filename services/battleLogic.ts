@@ -1,5 +1,5 @@
 import { Pokemon, TurnLog, StatusCondition } from '../types';
-import { TYPE_CHART } from '../constants';
+import { TYPE_CHART, RELICS } from '../constants';
 
 export const calculateDamage = (attacker: Pokemon, defender: Pokemon, moveType?: string): { damage: number, effectiveness: string, isCritical: boolean, isMiss: boolean } => {
   // 1. Status Checks that prevent attacking handled outside this function (Sleep/Freeze)
@@ -8,8 +8,18 @@ export const calculateDamage = (attacker: Pokemon, defender: Pokemon, moveType?:
   let missChance = 0.05;
   
   // Paralysis reduces speed by 50%
-  const attackerSpeed = attacker.status === 'paralysis' ? attacker.stats.speed * 0.5 : attacker.stats.speed;
-  const defenderSpeed = defender.status === 'paralysis' ? defender.stats.speed * 0.5 : defender.stats.speed;
+  const attackerRelic = attacker.heldItem ? RELICS[attacker.heldItem] : null;
+  const defenderRelic = defender.heldItem ? RELICS[defender.heldItem] : null;
+
+  let attackerSpeed = attacker.status === 'paralysis' ? attacker.stats.speed * 0.5 : attacker.stats.speed;
+  if (attackerRelic?.id === 'quick_claw' && attackerRelic.value) {
+      attackerSpeed *= (1 + attackerRelic.value);
+  }
+
+  let defenderSpeed = defender.status === 'paralysis' ? defender.stats.speed * 0.5 : defender.stats.speed;
+  if (defenderRelic?.id === 'quick_claw' && defenderRelic.value) {
+      defenderSpeed *= (1 + defenderRelic.value);
+  }
 
   if (defenderSpeed > attackerSpeed) {
       missChance += 0.05; 
@@ -23,10 +33,19 @@ export const calculateDamage = (attacker: Pokemon, defender: Pokemon, moveType?:
   // Base power
   const power = moveType ? 75 : 40;
   
-  // Burn reduces Attack by 50%
-  const effectiveAttack = attacker.status === 'burn' ? attacker.stats.attack * 0.5 : attacker.stats.attack;
+  // Attack Calculation (Burn reduces by 50%, Muscle Band increases)
+  let effectiveAttack = attacker.status === 'burn' ? attacker.stats.attack * 0.5 : attacker.stats.attack;
+  if (attackerRelic?.id === 'muscle_band' && attackerRelic.value) {
+      effectiveAttack *= (1 + attackerRelic.value);
+  }
 
-  const rawDamage = (effectiveAttack / defender.stats.defense) * power;
+  // Defense Calculation
+  let effectiveDefense = defender.stats.defense;
+  if (defenderRelic?.id === 'iron_vest' && defenderRelic.value) {
+      effectiveDefense *= (1 + defenderRelic.value);
+  }
+
+  const rawDamage = (effectiveAttack / effectiveDefense) * power;
   
   let multiplier = 1;
   let effectiveness = 'normal';
@@ -53,8 +72,13 @@ export const calculateDamage = (attacker: Pokemon, defender: Pokemon, moveType?:
     }
   }
 
-  // Critical Hit (10%)
-  const isCritical = Math.random() < 0.1;
+  // Critical Hit (10% base + Scope Lens)
+  let critChance = 0.1;
+  if (attackerRelic?.id === 'scope_lens' && attackerRelic.value) {
+      critChance += attackerRelic.value;
+  }
+
+  const isCritical = Math.random() < critChance;
   if (isCritical) {
       multiplier *= 1.5;
   }
